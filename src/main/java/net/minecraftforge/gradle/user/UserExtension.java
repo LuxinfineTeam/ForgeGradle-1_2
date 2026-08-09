@@ -14,6 +14,8 @@ public class UserExtension extends BaseExtension {
     private HashMap<String, Object> replacements = new HashMap<>();
     private List<String> includes = new ArrayList<>();
     private boolean isDecomp = false;
+    private List<String> clientJvmArgs = new ArrayList<>();
+    private List<String> serverJvmArgs = new ArrayList<>();
 
     public UserExtension(UserBasePlugin<? extends UserExtension> plugin) {
         super(plugin);
@@ -56,5 +58,21 @@ public class UserExtension extends BaseExtension {
         if (!Strings.isNullOrEmpty(mappings)) {
             this.setMcpVersion(mappings);
         }
+    }
+
+    public List<String> getClientJvmArgs() {
+        return clientJvmArgs;
+    }
+
+    public void setClientJvmArgs(List<String> clientJvmArgs) {
+        this.clientJvmArgs = clientJvmArgs;
+    }
+
+    public List<String> getServerJvmArgs() {
+        return serverJvmArgs;
+    }
+
+    public void setServerJvmArgs(List<String> serverJvmArgs) {
+        this.serverJvmArgs = serverJvmArgs;
     }
 }

@@ -22,7 +22,7 @@ import java.util.List;
 import java.util.jar.JarEntry;
 import java.util.jar.JarInputStream;
 import java.util.jar.JarOutputStream;
-import java.util.jar.Pack200;
+import org.apache.commons.compress.java.util.jar.Pack200;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.zip.*;

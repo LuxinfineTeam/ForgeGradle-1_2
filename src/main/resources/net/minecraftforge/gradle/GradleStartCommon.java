@@ -199,6 +199,54 @@ public abstract class GradleStartCommon {
 
     public static final Map<String, File> coreMap = new HashMap<String, File>();
 
+    /**
+     * Get URLs from ClassLoader, compatible with Java 9+
+     */
+    @SuppressWarnings("unchecked")
+    private static URL[] getClassLoaderURLs(ClassLoader classLoader) {
+        if (classLoader instanceof URLClassLoader) {
+            return ((URLClassLoader) classLoader).getURLs();
+        }
+
+        // Java 9+ workaround: try to get URLs via reflection
+        try {
+            // Try to get the ucp (URLClassPath) field
+            Class<?> clazz = classLoader.getClass();
+            while (clazz != null) {
+                try {
+                    Field ucpField = clazz.getDeclaredField("ucp");
+                    ucpField.setAccessible(true);
+                    Object ucp = ucpField.get(classLoader);
+
+                    Method getURLsMethod = ucp.getClass().getDeclaredMethod("getURLs");
+                    getURLsMethod.setAccessible(true);
+                    return (URL[]) getURLsMethod.invoke(ucp);
+                } catch (NoSuchFieldException e) {
+                    clazz = clazz.getSuperclass();
+                }
+            }
+        } catch (Exception e) {
+            LOGGER.warn("Failed to get URLs from ClassLoader via reflection", e);
+        }
+
+        // Fallback: parse classpath
+        String classpath = System.getProperty("java.class.path");
+        if (classpath != null) {
+            String[] paths = classpath.split(File.pathSeparator);
+            URL[] urls = new URL[paths.length];
+            for (int i = 0; i < paths.length; i++) {
+                try {
+                    urls[i] = new File(paths[i]).toURI().toURL();
+                } catch (Exception e) {
+                    LOGGER.warn("Failed to convert classpath entry to URL: " + paths[i], e);
+                }
+            }
+            return urls;
+        }
+
+        return new URL[0];
+    }
+
     @SuppressWarnings("unchecked")
     private void searchCoremods() throws Exception {
         // intialize AT hack Method
@@ -208,7 +256,7 @@ public abstract class GradleStartCommon {
         } catch (Throwable t) {
         }
 
-        for (URL url : ((URLClassLoader) GradleStartCommon.class.getClassLoader()).getURLs()) {
+        for (URL url : getClassLoaderURLs(GradleStartCommon.class.getClassLoader())) {
             if (!url.getProtocol().startsWith("file")) // because file urls start with file://
                 continue; //         this isnt a file
 

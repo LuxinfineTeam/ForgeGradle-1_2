@@ -23,6 +23,7 @@ import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.util.*;
 import java.util.jar.*;
+import org.apache.commons.compress.java.util.jar.Pack200;
 import java.util.zip.Adler32;
 import java.util.zip.ZipEntry;
 

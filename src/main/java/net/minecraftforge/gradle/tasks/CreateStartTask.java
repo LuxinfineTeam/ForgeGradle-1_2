@@ -69,8 +69,8 @@ public class CreateStartTask extends DefaultTask {
                     .put("includeantruntime", false)
                     .put("classpath", configurations.getByName(classpath).getAsPath())
                     .put("encoding", StandardCharsets.UTF_8)
-                    .put("source", "1.6")
-                    .put("target", "1.6")
+                    .put("source", "1.8")
+                    .put("target", "1.8")
                     .build());
         }
 

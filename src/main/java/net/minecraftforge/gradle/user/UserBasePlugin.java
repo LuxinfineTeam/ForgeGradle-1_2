@@ -31,6 +31,8 @@ import org.gradle.api.tasks.bundling.Zip;
 import org.gradle.api.tasks.compile.GroovyCompile;
 import org.gradle.api.tasks.compile.JavaCompile;
 import org.gradle.api.tasks.scala.ScalaCompile;
+import org.gradle.jvm.toolchain.JavaLanguageVersion;
+import org.gradle.jvm.toolchain.JavaToolchainService;
 import org.gradle.plugins.ide.idea.model.IdeaModel;
 import org.w3c.dom.DOMException;
 import org.w3c.dom.Document;
@@ -423,6 +425,7 @@ public abstract class UserBasePlugin<T extends UserExtension> extends BasePlugin
         ideaConv.getModule().setInheritOutputDirs(true);
 
         Task task = makeTask("genIntellijRuns", DefaultTask.class);
+        task.setGroup("ForgeGradle");
         task.doLast(new Action<Task>() {
             @Override
             public void execute(Task task1) {
@@ -508,20 +511,32 @@ public abstract class UserBasePlugin<T extends UserExtension> extends BasePlugin
             }
         }
 
+        // Создать RunManager компонент если его нет
+        if (root == null) {
+            root = doc.createElement("component");
+            root.setAttribute("name", "RunManager");
+            root.setAttribute("selected", "Application.Minecraft Client");
+            doc.getDocumentElement().appendChild(root);
+        }
+
         String[][] config = new String[][]
                 {
                         new String[]
                                 {
                                         "Minecraft Client",
                                         GRADLE_START_CLIENT,
-                                        "-Xincgc -Xmx1024M -Xms1024M",
+                                        getExtension().getClientJvmArgs().isEmpty()
+                                            ? "-Xmx2048M -Xms1024M"
+                                            : String.join(" ", getExtension().getClientJvmArgs()),
                                         String.join(" ", getClientRunArgs())
                                 },
                         new String[]
                                 {
                                         "Minecraft Server",
                                         GRADLE_START_SERVER,
-                                        "-Xincgc -Dfml.ignoreInvalidMinecraftCertificates=true",
+                                        getExtension().getServerJvmArgs().isEmpty()
+                                            ? "-Dfml.ignoreInvalidMinecraftCertificates=true"
+                                            : String.join(" ", getExtension().getServerJvmArgs()),
                                         String.join(" ", getServerRunArgs())
                                 }
                 };
@@ -543,12 +558,17 @@ public abstract class UserBasePlugin<T extends UserExtension> extends BasePlugin
             add(child, "option", "name", "VM_PARAMETERS", "value", data[2]);
             add(child, "option", "name", "PROGRAM_PARAMETERS", "value", data[3]);
             add(child, "option", "name", "WORKING_DIRECTORY", "value", "file://" + delayedFile("{RUN_DIR}").call().getCanonicalPath().replace(module, "$PROJECT_DIR$"));
-            add(child, "option", "name", "ALTERNATIVE_JRE_PATH_ENABLED", "value", "false");
-            add(child, "option", "name", "ALTERNATIVE_JRE_PATH", "value", "");
+            add(child, "option", "name", "ALTERNATIVE_JRE_PATH_ENABLED", "value", "true");
+            //Увы, IDEA не позволяет задать 1.8 / 8 / jdk8 или чет такое, потому привязка к вендору
+            //В любом случае после генерации тасков ее можно поменять на ту jdk, которая есть на ПК
+            add(child, "option", "name", "ALTERNATIVE_JRE_PATH", "value", "liberica-1.8");
             add(child, "option", "name", "ENABLE_SWING_INSPECTOR", "value", "false");
             add(child, "option", "name", "ENV_VARIABLES");
             add(child, "option", "name", "PASS_PARENT_ENVS", "value", "true");
-            add(child, "module", "name", ((IdeaModel) project.getExtensions().getByName("idea")).getModule().getName());
+            String moduleName = ((IdeaModel) project.getExtensions().getByName("idea")).getModule().getName();
+            // IDEA заменяет точки на подчеркивания в именах модулей
+            String ideaModuleName = moduleName.replace(".", "_");
+            add(child, "module", "name", ideaModuleName + ".main");
             add(child, "envs");
             add(child, "RunnerSettings", "RunnerId", "Run");
             add(child, "ConfigurationWrapper", "RunnerId", "Run");
@@ -797,10 +817,13 @@ public abstract class UserBasePlugin<T extends UserExtension> extends BasePlugin
         // In gradle 4.2 or newer, workingDir be resolved immediately. So set workingDir in afterEvaluate.
         {
             final JavaExec exec = makeTask("runClient", JavaExec.class);
+            requireJava8(exec);
             project.afterEvaluate(project -> exec.workingDir(delayedFile("{RUN_DIR}")));
             exec.doFirst(new MakeDirExist(delayedFile("{RUN_DIR}")));
             JavaExecSpecHelper.setMainClass(exec, GRADLE_START_CLIENT);
-            //exec.jvmArgs("-Xincgc", "-Xmx1024M", "-Xms1024M", "-Dfml.ignoreInvalidMinecraftCertificates=true");
+            String[] jvmArgs = getExtension().getServerJvmArgs().isEmpty()
+                    ? new String[0] : getExtension().getServerJvmArgs().toArray(new String[0]);
+            exec.jvmArgs((Object[]) jvmArgs);
             exec.args(getClientRunArgs());
             exec.setStandardOutput(System.out);
             exec.setErrorOutput(System.err);
@@ -814,10 +837,14 @@ public abstract class UserBasePlugin<T extends UserExtension> extends BasePlugin
 
         {
             final JavaExec exec = makeTask("runServer", JavaExec.class);
+            requireJava8(exec);
             project.afterEvaluate(project -> exec.workingDir(delayedFile("{RUN_DIR}")));
             exec.doFirst(new MakeDirExist(delayedFile("{RUN_DIR}")));
             JavaExecSpecHelper.setMainClass(exec, GRADLE_START_SERVER);
-            exec.jvmArgs("-Xincgc", "-Dfml.ignoreInvalidMinecraftCertificates=true");
+            String[] jvmArgs = getExtension().getServerJvmArgs().isEmpty()
+                    ? new String[] {"-Dfml.ignoreInvalidMinecraftCertificates=true"}
+                    : getExtension().getServerJvmArgs().toArray(new String[0]);
+            exec.jvmArgs((Object[]) jvmArgs);
             exec.args(getServerRunArgs());
             exec.setStandardOutput(System.out);
             exec.setStandardInput(System.in);
@@ -829,61 +856,16 @@ public abstract class UserBasePlugin<T extends UserExtension> extends BasePlugin
             exec.dependsOn("makeStart");
             project.getTasks().getByPath("reobf").mustRunAfter(exec);
         }
+    }
 
-        {
-
-            final JavaExec exec = makeTask("debugClient", JavaExec.class);
-            project.afterEvaluate(project -> exec.workingDir(delayedFile("{RUN_DIR}")));
-            exec.doFirst(new MakeDirExist(delayedFile("{RUN_DIR}")));
-            exec.doFirst(new Action<Task>() {
-                @Override
-                public void execute(Task o) {
-                    project.getLogger().error("");
-                    project.getLogger().error("THIS TASK WILL BE DEPRECATED SOON!");
-                    project.getLogger().error("Instead use the runClient task, with the --debug-jvm option");
-                    project.getLogger().error("");
-                }
-            });
-            JavaExecSpecHelper.setMainClass(exec, GRADLE_START_CLIENT);
-            exec.jvmArgs("-Xincgc", "-Xmx1024M", "-Xms1024M", "-Dfml.ignoreInvalidMinecraftCertificates=true");
-            exec.args(getClientRunArgs());
-            exec.setStandardOutput(System.out);
-            exec.setErrorOutput(System.err);
-            exec.setDebug(true);
-
-            exec.setGroup("ForgeGradle");
-            exec.setDescription("Runs the Minecraft client in debug mode");
-
-            exec.dependsOn("makeStart");
-            project.getTasks().getByPath("reobf").mustRunAfter(exec);
-        }
-
-        {
-            final JavaExec exec = makeTask("debugServer", JavaExec.class);
-            project.afterEvaluate(project -> exec.workingDir(delayedFile("{RUN_DIR}")));
-            exec.doFirst(new MakeDirExist(delayedFile("{RUN_DIR}")));
-            exec.doFirst(new Action<Task>() {
-                @Override
-                public void execute(Task o) {
-                    project.getLogger().error("");
-                    project.getLogger().error("THIS TASK WILL BE DEPRECATED SOON!");
-                    project.getLogger().error("Instead use the runServer task, with the --debug-jvm option");
-                    project.getLogger().error("");
-                }
-            });
-            JavaExecSpecHelper.setMainClass(exec, GRADLE_START_SERVER);
-            exec.jvmArgs("-Xincgc", "-Dfml.ignoreInvalidMinecraftCertificates=true");
-            exec.args(getServerRunArgs());
-            exec.setStandardOutput(System.out);
-            exec.setStandardInput(System.in);
-            exec.setErrorOutput(System.err);
-            exec.setDebug(true);
-
-            exec.setGroup("ForgeGradle");
-            exec.setDescription("Runs the Minecraft serevr in debug mode");
-
-            exec.dependsOn("makeStart");
-            project.getTasks().getByPath("reobf").mustRunAfter(exec);
+    private void requireJava8(final JavaExec exec) {
+        try {
+            JavaToolchainService toolchains = project.getExtensions().getByType(JavaToolchainService.class);
+            exec.getJavaLauncher().set(
+                    toolchains.launcherFor(spec -> spec.getLanguageVersion().set(JavaLanguageVersion.of(8)))
+            );
+        } catch (Throwable t) {
+            project.getLogger().error("Unsupported gradle version {}", project.getGradle().getGradleVersion(), t);
         }
     }
 
@@ -1098,20 +1080,6 @@ public abstract class UserBasePlugin<T extends UserExtension> extends BasePlugin
         }
 
         exec = (JavaExec) project.getTasks().getByName("runServer");
-        {
-            exec.classpath(project.getConfigurations().getByName(CONFIG_RUNTIME_CLASSPATH));
-            exec.classpath(ArchiveTaskHelper.getArchivePath(jarTask));
-            exec.dependsOn(jarTask);
-        }
-
-        exec = (JavaExec) project.getTasks().getByName("debugClient");
-        {
-            exec.classpath(project.getConfigurations().getByName(CONFIG_RUNTIME_CLASSPATH));
-            exec.classpath(ArchiveTaskHelper.getArchivePath(jarTask));
-            exec.dependsOn(jarTask);
-        }
-
-        exec = (JavaExec) project.getTasks().getByName("debugServer");
         {
             exec.classpath(project.getConfigurations().getByName(CONFIG_RUNTIME_CLASSPATH));
             exec.classpath(ArchiveTaskHelper.getArchivePath(jarTask));
