@@ -13,15 +13,19 @@ import org.apache.tools.ant.types.Commandline;
 import org.gradle.api.Action;
 import org.gradle.api.Project;
 import org.gradle.api.Task;
+import org.gradle.api.artifacts.Configuration;
 import org.gradle.api.tasks.SourceSet;
 import org.gradle.api.tasks.SourceSetContainer;
 
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
+import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
+import java.util.*;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipFile;
 
 import static net.minecraftforge.gradle.common.Constants.JAR_MERGED;
 import static net.minecraftforge.gradle.user.UserConstants.CLASSIFIER_DECOMPILED;
@@ -155,11 +159,68 @@ public abstract class UserPatchBasePlugin extends UserBasePlugin<UserPatchExtens
             }
         }
 
+        // from dependencies (if enabled)
+        if (getExtension().getUseAtFromDependencies())
+            extractATsFromDependencies(binDeobf, decompDeobf);
+
         // configure fuzzing.
         ProcessSrcJarTask patch = (ProcessSrcJarTask) project.getTasks().getByName("processSources");
         patch.setMaxFuzz(getExtension().getMaxFuzz());
 
         super.delayedTaskConfig();
+    }
+
+    private void extractATsFromDependencies(final ProcessJarTask binDeobf, final ProcessJarTask decompDeobf) {
+        Set<File> processedJars = new HashSet<>();
+        File atCacheDir = new File(project.getLayout().getBuildDirectory().getAsFile().get(), "at-cache");
+        if (!atCacheDir.exists())
+            atCacheDir.mkdirs();
+
+        // Scan compile configuration for AT files in dependencies
+        try {
+            // Use compileClasspath which is resolvable, not implementation which isn't
+            String configName = project.getConfigurations().findByName("compileClasspath") != null
+                ? "compileClasspath"
+                : UserConstants.CONFIG_COMPILE;
+
+            project.getLogger().lifecycle("Scanning configuration '{}' for AccessTransformers in dependencies", configName);
+
+            // Create a recursive copy and make it resolvable to avoid mutating the original
+            Configuration copiedConfig = project.getConfigurations().getByName(configName).copyRecursive();
+            copiedConfig.setCanBeResolved(true);
+
+            for (File dep : copiedConfig.getFiles()) {
+                if (!dep.getName().endsWith(".jar") || !processedJars.add(dep))
+                    continue;
+
+                try (ZipFile zipFile = new ZipFile(dep)) {
+                    Enumeration<? extends ZipEntry> entries = zipFile.entries();
+
+                    while (entries.hasMoreElements()) {
+                        ZipEntry entry = entries.nextElement();
+                        String entryName = entry.getName();
+
+                        if (entryName.toLowerCase().endsWith("_at.cfg")) {
+                            // Extract AT file to cache directory
+                            String safeName = dep.getName().replace(".jar", "") + "_" + new File(entryName).getName();
+                            File atFile = new File(atCacheDir, safeName);
+
+                            try (InputStream is = zipFile.getInputStream(entry)) {
+                                Files.copy(is, atFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+                            }
+
+                            project.getLogger().lifecycle("Found AccessTransformer in dependency " + dep.getName() + ": " + entryName);
+                            binDeobf.addTransformer(atFile);
+                            decompDeobf.addTransformer(atFile);
+                        }
+                    }
+                } catch (Exception e) {
+                    project.getLogger().warn("Failed to scan dependency for ATs: {}", dep.getName(), e);
+                }
+            }
+        } catch (Exception e) {
+            project.getLogger().warn("Failed to extract ATs from dependencies", e);
+        }
     }
 
     @Override

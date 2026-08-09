@@ -12,6 +12,7 @@ public class UserPatchExtension extends UserExtension {
 
     private String apiVersion;
     private ArrayList<Object> ats = new ArrayList<>();
+    private boolean useAtFromDependencies = true;
 
     public UserPatchExtension(UserPatchBasePlugin plugin) {
         super(plugin);
@@ -59,6 +60,14 @@ public class UserPatchExtension extends UserExtension {
 
     public void setMaxFuzz(int fuzz) {
         this.maxFuzz = fuzz;
+    }
+
+    public boolean getUseAtFromDependencies() {
+        return useAtFromDependencies;
+    }
+
+    public void setUseAtFromDependencies(boolean useAtFromDependencies) {
+        this.useAtFromDependencies = useAtFromDependencies;
     }
 
     public void setVersion(String str) // magic goes here
