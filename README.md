@@ -1,20 +1,69 @@
-ForgeGradle
-===========
+# ForgeGradle 1.2 extended
+Это форк проекта https://github.com/anatawa12/ForgeGradle-1.2/
 
-Join Chat [![Discord](https://img.shields.io/discord/834256470580396043)](https://discord.gg/yzEdnuJMXv)
+### Список изменений:
+- Поддержка запуска gradle на JDK 17-21
+- Сохранение module (новое поле в IntelliJ IDEA конфигурациях) при запуске genIntellijRuns
+- Использование apache compress для замены удаленного Pack200 класса из новых версий Java
+- Компиляция класса GradleStart на java8 (изначально под java6 собиралось)
+- Перенос таска genIntellijRuns в группу "ForgeGradle" (изначаньно таск валялся в other)
+- Автоматический поиск Java8 через gradle toolchain api для запуска майнкрафт через runClient / runServer
+- Добавлены проперти clientJvmArgs и serverJvmArgs в minecraft конфигурации, позволяющие настроить JVM аргументы запуска. Можно использовать для настроек по типу -Dfml.coreMods.load
+- Небольшие оптимизации общей работы плагина за счет перехода на java nio в некоторых местах
+- Поддержка автоматического применения _at.cfg из всех зависимостей проекта при setupDecompWorkspace. При необходимости можно отключить указав useAtFromDependencies=false в minecraft конфигурации
 
-Minecraft mod development framework used by Forge and FML for the gradle build system
+### Пример подключения плагина:
+```groovy
+buildscript {
+    repositories {
+        maven { url 'https://jitpack.io' }
+        maven {
+            name 'forge'
+            url 'https://maven.minecraftforge.net'
+        }
+    }
+    dependencies {
+        classpath('com.github.LuxinfineTeam:ForgeGradle-1.7.10:main-SNAPSHOT') {
+            changing = true
+        }
+    }
+}
 
-this repository is only for ForgeGradle 1.2, ForgeGradle for minecraft 1.7.2, 1.7.10, and 1.8.
+apply plugin: 'forge'
 
-[Here](https://github.com/anatawa12/ForgeGradle-2.3) is repository for ForgeGradle 2.3. If you're modding for 1.12.x, use it.
+[compileJava, compileTestJava]*.options*.encoding = 'UTF-8'
+sourceCompatibility = '1.8'
+targetCompatibility = '1.8'
 
-This project is a fork of [ForgeGradle branch 'FG_1.2'](https://github.com/MinecraftForge/ForgeGradle/tree/FG_1.2).
+version = "1.0"
+archivesBaseName = "MyModName"
 
-[Example project found here](https://github.com/anatawa12/ForgeGradle-example)
+minecraft {
+    version = "1.7.10-10.13.4.1614-1.7.10"
+    replace '@VERSION@', version
+    
+    // Можно задать аргументы запуска, опционально
+    clientJvmArgs = [
+        '-Xmx2048M',
+        '-Xms1024M',
+    ]
+    serverJvmArgs = [
+        '-Xmx2048M',
+        '-Xms1024M',
+    ]
+    
+    // Если по какой-то причине вам не нужно подключение AT из зависимостей - расскоментируйте эту строку
+    //useAtFromDependencies=false
+}
 
-[Documentation found here](http://forgegradle.readthedocs.org/)
+// Добавляем флаг компилятора, чтобы итоговый билд работал на java8
+tasks.withType(JavaCompile) {
+    if (JavaVersion.current().isJava9Compatible()) {
+        options.compilerArgs.addAll(['--release', '8'])
+    }
+}
+```
 
-## How to replace ForgeGradle 1.2. with anatawa12's fork
-
-See [How to replace ForgeGradle 1.2. with anatawa12's fork in example project](https://github.com/anatawa12/ForgeGradle-example#how-to-replace-forgegradle-12-with-anatawa12s-fork)
+### Требования
+- Gradle 6.7 (С этой версии введен toolchain api)
+- JDK 8 (для запуска игры в IDE) и JDK 17-21 для запуска gradle
