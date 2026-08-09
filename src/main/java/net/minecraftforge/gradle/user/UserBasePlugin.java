@@ -352,8 +352,8 @@ public abstract class UserBasePlugin<T extends UserExtension> extends BasePlugin
         SourceSet api = sourceSets.create("api");
 
         // set the Source
-        JavaExtensionHelper.setSourceCompatibility(project, "1.6");
-        JavaExtensionHelper.setTargetCompatibility(project, "1.6");
+        JavaExtensionHelper.setSourceCompatibility(project, "1.8");
+        JavaExtensionHelper.setTargetCompatibility(project, "1.8");
 
         main.setCompileClasspath(main.getCompileClasspath().plus(api.getOutput()));
         test.setCompileClasspath(test.getCompileClasspath().plus(api.getOutput()));
