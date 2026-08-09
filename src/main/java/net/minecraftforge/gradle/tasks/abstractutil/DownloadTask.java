@@ -14,6 +14,7 @@ import java.net.HttpURLConnection;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
 
 @CacheableTask
 public class DownloadTask extends DefaultTask {
@@ -26,7 +27,6 @@ public class DownloadTask extends DefaultTask {
     public void doTask() throws IOException, URISyntaxException {
         File output = getOutput();
         output.getParentFile().mkdirs();
-        output.createNewFile();
 
         getLogger().debug("Downloading " + getUrl() + " to " + output);
 
@@ -36,20 +36,9 @@ public class DownloadTask extends DefaultTask {
         connect.setRequestProperty("User-Agent", Constants.USER_AGENT);
         connect.setInstanceFollowRedirects(true);
 
-        InputStream inStream = connect.getInputStream();
-        OutputStream outStream = Files.newOutputStream(output.toPath());
-
-        int data = inStream.read();
-        while (data != -1) {
-            outStream.write(data);
-
-            // read next
-            data = inStream.read();
+        try (InputStream inStream = connect.getInputStream()) {
+            Files.copy(inStream, output.toPath(), StandardCopyOption.REPLACE_EXISTING);
         }
-
-        inStream.close();
-        outStream.flush();
-        outStream.close();
 
         getLogger().info("Download complete");
     }

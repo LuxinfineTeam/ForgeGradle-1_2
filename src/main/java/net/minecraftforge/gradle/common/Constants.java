@@ -1,6 +1,5 @@
 package net.minecraftforge.gradle.common;
 
-import com.google.common.io.ByteStreams;
 import groovy.lang.Closure;
 import net.minecraftforge.gradle.ProjectBuildDirHelper;
 import net.minecraftforge.gradle.StringUtils;
@@ -18,7 +17,7 @@ import java.net.URLClassLoader;
 import java.nio.file.Files;
 import java.security.MessageDigest;
 import java.util.ArrayList;
-import java.util.LinkedList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
@@ -149,25 +148,32 @@ public class Constants {
     }
 
     public static List<String> hashAll(File file) {
-        LinkedList<String> list = new LinkedList<>();
+        List<String> list = new ArrayList<>();
 
         if (file.isDirectory()) {
-            for (File f : file.listFiles())
-                list.addAll(hashAll(f));
-        } else if (!file.getName().equals(".cache"))
+            File[] files = file.listFiles();
+            if (files != null) {
+                Arrays.sort(files);
+                for (File f : files) {
+                    list.addAll(hashAll(f));
+                }
+            }
+        } else if (!file.getName().equals(".cache")) {
             list.add(hash(file));
+        }
 
         return list;
     }
 
     public static String hash(File file, String function) {
-
-        try {
-            InputStream fis = Files.newInputStream(file.toPath());
-            byte[] array = ByteStreams.toByteArray(fis);
-            fis.close();
-
-            return hash(array, function);
+        try (InputStream fis = Files.newInputStream(file.toPath())) {
+            MessageDigest digest = MessageDigest.getInstance(function);
+            byte[] buffer = new byte[8192];
+            int bytesRead;
+            while ((bytesRead = fis.read(buffer)) != -1) {
+                digest.update(buffer, 0, bytesRead);
+            }
+            return bytesToHex(digest.digest());
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -176,27 +182,20 @@ public class Constants {
     }
 
     public static String hashZip(File file, String function) {
-        try {
+        try (ZipInputStream zin = new ZipInputStream(Files.newInputStream(file.toPath()))) {
             MessageDigest hasher = MessageDigest.getInstance(function);
 
-            ZipInputStream zin = new ZipInputStream(Files.newInputStream(file.toPath()));
             ZipEntry entry;
+            byte[] buffer = new byte[8192];
             while ((entry = zin.getNextEntry()) != null) {
                 hasher.update(entry.getName().getBytes());
-                hasher.update(ByteStreams.toByteArray(zin));
+                int bytesRead;
+                while ((bytesRead = zin.read(buffer)) != -1) {
+                    hasher.update(buffer, 0, bytesRead);
+                }
             }
-            zin.close();
 
-            byte[] hash = hasher.digest();
-
-
-            // convert to string
-            StringBuilder result = new StringBuilder();
-
-            for (int i = 0; i < hash.length; i++) {
-                result.append(Integer.toString((hash[i] & 0xff) + 0x100, 16).substring(1));
-            }
-            return result.toString();
+            return bytesToHex(hasher.digest());
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -216,18 +215,24 @@ public class Constants {
         try {
             MessageDigest complete = MessageDigest.getInstance(function);
             byte[] hash = complete.digest(bytes);
-
-            StringBuilder result = new StringBuilder();
-
-            for (int i = 0; i < hash.length; i++) {
-                result.append(Integer.toString((hash[i] & 0xff) + 0x100, 16).substring(1));
-            }
-            return result.toString();
+            return bytesToHex(hash);
         } catch (Exception e) {
             e.printStackTrace();
         }
 
         return null;
+    }
+
+    private static final char[] HEX_ARRAY = "0123456789abcdef".toCharArray();
+
+    private static String bytesToHex(byte[] bytes) {
+        char[] hexChars = new char[bytes.length * 2];
+        for (int i = 0; i < bytes.length; i++) {
+            int v = bytes[i] & 0xFF;
+            hexChars[i * 2] = HEX_ARRAY[v >>> 4];
+            hexChars[i * 2 + 1] = HEX_ARRAY[v & 0x0F];
+        }
+        return new String(hexChars);
     }
 
     /**
