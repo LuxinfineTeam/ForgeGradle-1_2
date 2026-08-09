@@ -189,6 +189,12 @@ publishing {
                         name.set("anatawa12")
                         roles.set(setOf("developer"))
                     }
+
+                    developer {
+                        id.set("LuxinfineTeam")
+                        name.set("LuxinfineTeam")
+                        roles.set(setOf("developer"))
+                    }
                 }
             }
         }
