@@ -821,8 +821,8 @@ public abstract class UserBasePlugin<T extends UserExtension> extends BasePlugin
             project.afterEvaluate(project -> exec.workingDir(delayedFile("{RUN_DIR}")));
             exec.doFirst(new MakeDirExist(delayedFile("{RUN_DIR}")));
             JavaExecSpecHelper.setMainClass(exec, GRADLE_START_CLIENT);
-            String[] jvmArgs = getExtension().getServerJvmArgs().isEmpty()
-                    ? new String[0] : getExtension().getServerJvmArgs().toArray(new String[0]);
+            String[] jvmArgs = getExtension().getClientJvmArgs().isEmpty()
+                    ? new String[0] : getExtension().getClientJvmArgs().toArray(new String[0]);
             exec.jvmArgs((Object[]) jvmArgs);
             exec.args(getClientRunArgs());
             exec.setStandardOutput(System.out);

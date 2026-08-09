@@ -23,19 +23,67 @@ java {
 
 val gradleStartDev = false
 
+// Создаём source set для GradleStart шаблонов
+sourceSets {
+    create("templates") {
+        java {
+            srcDir("src/templates/java")
+        }
+    }
+}
+
+// Настройка IDEA для корректного отображения
+idea {
+    module {
+        sourceDirs = sourceDirs + file("src/templates/java")
+    }
+}
+
+// Синхронизируем изменения из src/templates/java в src/main/resources
+val syncTemplatesToResources by tasks.creating(Sync::class) {
+    from("src/templates/java")
+    into("src/main/resources")
+    include("**/*.java")
+}
+
+// Настраиваем задачи для templates source set
+tasks.named<JavaCompile>("compileTemplatesJava") {
+    // Компилируем только для IDE, не включаем в основной jar
+    destinationDirectory.set(layout.buildDirectory.dir("templates-classes"))
+}
+
+// Автоматически синхронизируем перед processResources
+tasks.named("processResources") {
+    dependsOn(syncTemplatesToResources)
+}
+
+// Также добавляем зависимость для sourcesJar (создаётся позже)
+tasks.whenTaskAdded {
+    if (name == "sourcesJar") {
+        dependsOn(syncTemplatesToResources)
+    }
+}
+
 repositories {
     mavenCentral()
     maven("https://maven.minecraftforge.net") {
         name = "forge"
     }
-    if (gradleStartDev) {
-        maven("https://libraries.minecraft.net/") {
-            name = "mojang"
-        }
+    maven("https://libraries.minecraft.net/") {
+        name = "mojang"
     }
 }
 
 val jar by tasks.getting(Jar::class) {
+    // Исключаем GradleStart классы из jar (они должны быть только в resources)
+    exclude("GradleStart*.class")
+    exclude("net/minecraftforge/gradle/GradleStartCommon*.class")
+    exclude("net/minecraftforge/gradle/OldPropertyMapSerializer*.class")
+    exclude("net/minecraftforge/gradle/tweakers/**/*.class")
+
+    // Стратегия для дубликатов (если файлы уже есть из processResources)
+    duplicatesStrategy = DuplicatesStrategy.INCLUDE
+
     manifest {
         attributes(mapOf(
             "version" to project.version,
@@ -104,6 +152,15 @@ dependencies {
         compileOnly("com.mojang:authlib:1.5.16")
         compileOnly("net.minecraft:launchwrapper:1.11")
     }
+
+    // Зависимости для templates source set (только для IDE индексации)
+    "templatesCompileOnly"("com.mojang:authlib:1.5.16")
+    "templatesCompileOnly"("net.minecraft:launchwrapper:1.11")
+    "templatesCompileOnly"("com.google.guava:guava:31.1-jre")
+    "templatesCompileOnly"("com.google.code.gson:gson:2.10.1")
+    "templatesCompileOnly"("org.apache.logging.log4j:log4j-api:2.17.1")
+    "templatesCompileOnly"("org.apache.logging.log4j:log4j-core:2.17.1")
+    "templatesCompileOnly"("net.sf.jopt-simple:jopt-simple:4.6")
 
     testImplementation("org.junit.jupiter:junit-jupiter:5.9.3")
 }

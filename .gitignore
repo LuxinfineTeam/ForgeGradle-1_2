@@ -17,9 +17,19 @@ bin
 out
 *.idea
 *.iml
+*.ipr
+*.iws
 
 #mkdocs
 site
 
 # testing
 /repo/
+
+# Автоматически генерируемые шаблоны (синхронизируются из src/templates/java)
+src/main/resources/GradleStart.java
+src/main/resources/GradleStartServer.java
+src/main/resources/net/minecraftforge/gradle/GradleStartCommon.java
+src/main/resources/net/minecraftforge/gradle/OldPropertyMapSerializer.java
+src/main/resources/net/minecraftforge/gradle/tweakers/
+
