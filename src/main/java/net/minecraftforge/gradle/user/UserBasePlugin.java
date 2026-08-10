@@ -892,10 +892,20 @@ public abstract class UserBasePlugin<T extends UserExtension> extends BasePlugin
         if (project.getPlugins().hasPlugin("scala")) {
             SourceDirectorySet set;
             DslObject dslObject = new DslObject(main);
-            if (GradleVersionUtils.isBefore("7.1")) {
-                @SuppressWarnings("deprecation")
-                SourceDirectorySet set1 = ((ScalaSourceSet) dslObject.getConvention().getPlugins().get("scala")).getScala();
-                set = set1;
+            if (GradleVersionUtils.isBefore("9.0")) {
+                if (GradleVersionUtils.isBefore("7.1")) {
+                    //Легаси gradle
+                    try {
+                        Object convention = dslObject.getClass().getMethod("getConvention").invoke(dslObject);
+                        Object plugins = convention.getClass().getMethod("getPlugins").invoke(convention);
+                        Object scalaSourceSet = ((java.util.Map<?, ?>) plugins).get("scala");
+                        set = (SourceDirectorySet) scalaSourceSet.getClass().getMethod("getScala").invoke(scalaSourceSet);
+                    } catch (Exception e) {
+                        throw new RuntimeException("Failed to get Scala source set", e);
+                    }
+                } else {
+                    set = dslObject.getExtensions().getByType(ScalaSourceDirectorySet.class);
+                }
             } else {
                 set = dslObject.getExtensions().getByType(ScalaSourceDirectorySet.class);
             }
@@ -910,14 +920,24 @@ public abstract class UserBasePlugin<T extends UserExtension> extends BasePlugin
             compile.setSource(dir);
         }
 
-        // groovy!!!
+        // groovy!!! (А кто вообще на нем моды пишет?)
         if (project.getPlugins().hasPlugin("groovy")) {
             SourceDirectorySet set;
             DslObject dslObject = new DslObject(main);
-            if (GradleVersionUtils.isBefore("7.1")) {
-                @SuppressWarnings("deprecation")
-                SourceDirectorySet set1 = ((GroovySourceSet) dslObject.getConvention().getPlugins().get("groovy")).getGroovy();
-                set = set1;
+            if (GradleVersionUtils.isBefore("9.0")) {
+                if (GradleVersionUtils.isBefore("7.1")) {
+                    //Легаси gradle
+                    try {
+                        Object convention = dslObject.getClass().getMethod("getConvention").invoke(dslObject);
+                        Object plugins = convention.getClass().getMethod("getPlugins").invoke(convention);
+                        Object groovySourceSet = ((java.util.Map<?, ?>) plugins).get("groovy");
+                        set = (SourceDirectorySet) groovySourceSet.getClass().getMethod("getGroovy").invoke(groovySourceSet);
+                    } catch (Exception e) {
+                        throw new RuntimeException("Failed to get Groovy source set", e);
+                    }
+                } else {
+                    set = dslObject.getExtensions().getByType(GroovySourceDirectorySet.class);
+                }
             } else {
                 set = dslObject.getExtensions().getByType(GroovySourceDirectorySet.class);
             }

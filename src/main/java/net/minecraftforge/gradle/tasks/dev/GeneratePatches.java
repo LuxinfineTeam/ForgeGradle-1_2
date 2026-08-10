@@ -14,24 +14,25 @@ import org.gradle.api.file.FileCollection;
 import org.gradle.api.file.FileTree;
 import org.gradle.api.file.FileVisitDetails;
 import org.gradle.api.file.FileVisitor;
-import org.gradle.api.tasks.Input;
-import org.gradle.api.tasks.InputFiles;
-import org.gradle.api.tasks.OutputDirectory;
-import org.gradle.api.tasks.TaskAction;
+import org.gradle.api.tasks.*;
+import org.gradle.work.DisableCachingByDefault;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.*;
 
+@DisableCachingByDefault(because = "Generates patches by comparing file trees")
 public class GeneratePatches extends DefaultTask {
     @OutputDirectory
     DelayedFile patchDir;
 
     @InputFiles
+    @PathSensitive(PathSensitivity.RELATIVE)
     DelayedFile changed;
 
     @InputFiles
+    @PathSensitive(PathSensitivity.RELATIVE)
     DelayedFile original;
 
     @Input

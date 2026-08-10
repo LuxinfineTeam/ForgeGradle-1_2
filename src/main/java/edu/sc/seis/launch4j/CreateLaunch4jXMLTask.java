@@ -3,6 +3,7 @@ package edu.sc.seis.launch4j;
 import org.gradle.api.DefaultTask;
 import org.gradle.api.tasks.OutputFile;
 import org.gradle.api.tasks.TaskAction;
+import org.gradle.api.tasks.UntrackedTask;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 
@@ -18,6 +19,7 @@ import javax.xml.transform.stream.StreamResult;
 import java.io.File;
 import java.util.regex.Pattern;
 
+@UntrackedTask(because = "Generates XML configuration file")
 public class CreateLaunch4jXMLTask extends DefaultTask {
     private final String projectName = getProject().getName();
     @OutputFile

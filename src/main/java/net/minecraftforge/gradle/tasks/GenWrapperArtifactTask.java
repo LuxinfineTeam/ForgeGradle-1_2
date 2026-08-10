@@ -16,6 +16,7 @@ import java.util.function.BooleanSupplier;
 
 import static net.minecraftforge.gradle.user.UserConstants.WRAPPER_ARTIFACT_GROUP_ID;
 
+@UntrackedTask(because = "Generates wrapper artifact metadata")
 public class GenWrapperArtifactTask extends DefaultTask {
     @OutputFile
     DelayedFile ivyXml;
@@ -40,6 +41,7 @@ public class GenWrapperArtifactTask extends DefaultTask {
 
     @InputFiles
     @Optional
+    @PathSensitive(PathSensitivity.NONE)
     Configuration configuration;
 
     public File getIvyXml() {

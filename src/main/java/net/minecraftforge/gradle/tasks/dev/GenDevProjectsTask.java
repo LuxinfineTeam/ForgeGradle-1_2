@@ -9,6 +9,7 @@ import net.minecraftforge.gradle.json.version.Library;
 import net.minecraftforge.gradle.json.version.Version;
 import org.gradle.api.DefaultTask;
 import org.gradle.api.tasks.*;
+import org.gradle.work.DisableCachingByDefault;
 
 import java.io.File;
 import java.io.IOException;
@@ -20,6 +21,7 @@ import java.util.List;
 
 import static net.minecraftforge.gradle.common.Constants.NEWLINE;
 
+@DisableCachingByDefault(because = "Generates project files with complex logic")
 public class GenDevProjectsTask extends DefaultTask {
     protected DelayedFile targetDir;
 
@@ -268,11 +270,13 @@ public class GenDevProjectsTask extends DefaultTask {
     }
 
     @InputFile
+    @PathSensitive(PathSensitivity.RELATIVE)
     public File getJson() {
         return json.call();
     }
 
     @InputDirectory
+    @PathSensitive(PathSensitivity.RELATIVE)
     public File getJsonParentDir() {
         return getJson().getParentFile();
     }

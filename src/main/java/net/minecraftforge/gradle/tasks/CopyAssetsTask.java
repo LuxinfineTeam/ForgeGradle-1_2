@@ -8,12 +8,14 @@ import org.gradle.api.DefaultTask;
 import org.gradle.api.tasks.Input;
 import org.gradle.api.tasks.OutputDirectory;
 import org.gradle.api.tasks.TaskAction;
+import org.gradle.work.DisableCachingByDefault;
 
 import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
 import java.util.Map.Entry;
 
+@DisableCachingByDefault(because = "Copies assets from index")
 public class CopyAssetsTask extends DefaultTask {
     @Input
     Closure<AssetIndex> assetIndex;

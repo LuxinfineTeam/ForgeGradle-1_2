@@ -27,6 +27,7 @@ import java.util.*;
  * This class offers some extra helper methods for caching files.
  */
 // TODO : Maybe move to Gradle's Caching system ?
+@UntrackedTask(because = "Abstract base class with custom caching logic")
 public abstract class CachedTask extends DefaultTask {
     private boolean doesCache = true;
     private boolean cacheSet = false;

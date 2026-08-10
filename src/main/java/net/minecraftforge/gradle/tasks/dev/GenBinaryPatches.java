@@ -13,7 +13,10 @@ import net.minecraftforge.gradle.delayed.DelayedFileTree;
 import org.gradle.api.DefaultTask;
 import org.gradle.api.tasks.InputFile;
 import org.gradle.api.tasks.OutputFile;
+import org.gradle.api.tasks.PathSensitive;
+import org.gradle.api.tasks.PathSensitivity;
 import org.gradle.api.tasks.TaskAction;
+import org.gradle.work.DisableCachingByDefault;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -27,25 +30,32 @@ import org.apache.commons.compress.java.util.jar.Pack200;
 import java.util.zip.Adler32;
 import java.util.zip.ZipEntry;
 
+@DisableCachingByDefault(because = "Generates binary patches with complex processing logic")
 public class GenBinaryPatches extends DefaultTask {
     @InputFile
+    @PathSensitive(PathSensitivity.NONE)
     private DelayedFile cleanClient;
 
     @InputFile
+    @PathSensitive(PathSensitivity.NONE)
     private DelayedFile cleanServer;
 
     @InputFile
+    @PathSensitive(PathSensitivity.NONE)
     private DelayedFile cleanMerged;
 
     @InputFile
+    @PathSensitive(PathSensitivity.NONE)
     private DelayedFile dirtyJar;
 
     private List<DelayedFileTree> patchList = new ArrayList<>();
 
     @InputFile
+    @PathSensitive(PathSensitivity.NONE)
     private DelayedFile deobfDataLzma;
 
     @InputFile
+    @PathSensitive(PathSensitivity.NONE)
     private DelayedFile srg;
 
     @OutputFile

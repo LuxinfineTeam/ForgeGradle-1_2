@@ -33,28 +33,35 @@ import java.util.zip.ZipOutputStream;
 import static net.minecraftforge.gradle.common.Constants.EXT_NAME_MC;
 import static org.objectweb.asm.Opcodes.*;
 
+@UntrackedTask(because = "Processes and transforms Minecraft jar")
 public class ProcessJarTask extends CachedTask {
     private final ExtensionContainer extensions = getProject().getExtensions();
     @InputFile
     @Optional
+    @PathSensitive(PathSensitivity.NONE)
     private DelayedFile fieldCsv;
     @InputFile
     @Optional
+    @PathSensitive(PathSensitivity.NONE)
     private DelayedFile methodCsv;
 
     @InputFile
+    @PathSensitive(PathSensitivity.NONE)
     private DelayedFile inJar;
 
     @InputFile
+    @PathSensitive(PathSensitivity.NONE)
     private DelayedFile srg;
 
     @InputFile
+    @PathSensitive(PathSensitivity.NONE)
     private DelayedFile exceptorCfg;
 
     @Input
     private boolean stripSynthetics = false;
 
     @InputFile
+    @PathSensitive(PathSensitivity.NONE)
     private DelayedFile exceptorJson;
 
     @Input
@@ -67,6 +74,7 @@ public class ProcessJarTask extends CachedTask {
     private DelayedFile outDirtyJar = new DelayedFile(getProject(), "{BUILD_DIR}/processed.jar"); // dirty = has any other ATs
 
     @InputFiles
+    @PathSensitive(PathSensitivity.NONE)
     private ArrayList<DelayedFile> ats = new ArrayList<>();
 
     private DelayedFile log;

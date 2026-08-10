@@ -7,18 +7,25 @@ import net.minecraftforge.gradle.tasks.abstractutil.CachedTask;
 import org.gradle.api.tasks.Input;
 import org.gradle.api.tasks.InputFile;
 import org.gradle.api.tasks.OutputFile;
+import org.gradle.api.tasks.PathSensitive;
+import org.gradle.api.tasks.PathSensitivity;
 import org.gradle.api.tasks.TaskAction;
+import org.gradle.api.tasks.UntrackedTask;
 
 import java.io.*;
 
+@UntrackedTask(because = "Merges client and server jars")
 public class MergeJarsTask extends CachedTask {
     @InputFile
+    @PathSensitive(PathSensitivity.NONE)
     private Closure<File> mergeCfg;
 
     @InputFile
+    @PathSensitive(PathSensitivity.NONE)
     private Closure<File> client;
 
     @InputFile
+    @PathSensitive(PathSensitivity.NONE)
     private Closure<File> server;
 
     @Input

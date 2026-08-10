@@ -6,6 +6,7 @@ import com.github.abrarsyed.jastyle.OptParser;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Multimap;
 import com.google.common.io.ByteStreams;
+import net.minecraftforge.gradle.ExecHelper;
 import net.minecraftforge.gradle.FileUtils;
 import net.minecraftforge.gradle.JavaExecSpecHelper;
 import net.minecraftforge.gradle.ProjectBuildDirHelper;
@@ -37,18 +38,22 @@ import java.util.zip.ZipOutputStream;
 
 import static net.minecraftforge.gradle.common.Constants.EXT_NAME_MC;
 
+@UntrackedTask(because = "Decompiles and patches Minecraft sources")
 public class DecompileTask extends CachedTask {
     private final File buildDir = ProjectBuildDirHelper.getBuildDir(getProject());
     private final ExtensionContainer extensions = getProject().getExtensions();
     @InputFile
+    @PathSensitive(PathSensitivity.NONE)
     private DelayedFile inJar;
 
     @InputFile
+    @PathSensitive(PathSensitivity.NONE)
     private DelayedFile fernFlower;
 
     private DelayedFile patch;
 
     @InputFile
+    @PathSensitive(PathSensitivity.NONE)
     private DelayedFile astyleConfig;
 
     @OutputFile
@@ -96,7 +101,7 @@ public class DecompileTask extends CachedTask {
     }
 
     private void decompile(final File inJar, final File outJar, final File fernFlower) {
-        getProject().javaexec(exec -> {
+        ExecHelper.javaexec(getProject(), exec -> {
             exec.args(
                     fernFlower.getAbsolutePath(),
                     "-din=1",
@@ -333,6 +338,7 @@ public class DecompileTask extends CachedTask {
     }
 
     @InputFiles
+    @PathSensitive(PathSensitivity.RELATIVE)
     public FileCollection getPatches() {
         File patches = patch.call();
         if (patches.isDirectory())
@@ -342,6 +348,7 @@ public class DecompileTask extends CachedTask {
     }
 
     @InputDirectory
+    @PathSensitive(PathSensitivity.RELATIVE)
     public File getPatch() {
         return patch.call();
     }

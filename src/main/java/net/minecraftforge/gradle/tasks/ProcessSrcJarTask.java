@@ -8,8 +8,8 @@ import net.minecraftforge.gradle.patching.ContextualPatch.PatchStatus;
 import net.minecraftforge.gradle.tasks.abstractutil.EditJarTask;
 import org.gradle.api.file.FileCollection;
 import org.gradle.api.logging.LogLevel;
-import org.gradle.api.tasks.Input;
-import org.gradle.api.tasks.InputFiles;
+import org.gradle.api.tasks.*;
+import org.gradle.work.DisableCachingByDefault;
 
 import java.io.File;
 import java.io.IOException;
@@ -19,6 +19,7 @@ import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
 import java.util.*;
 
+@DisableCachingByDefault(because = "Abstract task with custom processing logic")
 public class ProcessSrcJarTask extends EditJarTask {
     private List<ResourceHolder> stages = new LinkedList<>();
 
@@ -153,6 +154,7 @@ public class ProcessSrcJarTask extends EditJarTask {
     }
 
     @InputFiles
+    @PathSensitive(PathSensitivity.RELATIVE)
     public FileCollection getAllPatches() {
         FileCollection col = null;
 
@@ -169,6 +171,7 @@ public class ProcessSrcJarTask extends EditJarTask {
     }
 
     @InputFiles
+    @PathSensitive(PathSensitivity.RELATIVE)
     public FileCollection getAllInjects() {
         FileCollection col = null;
 

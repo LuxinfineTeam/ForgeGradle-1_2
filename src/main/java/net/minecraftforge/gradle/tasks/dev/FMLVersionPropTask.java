@@ -6,12 +6,14 @@ import net.minecraftforge.gradle.delayed.DelayedString;
 import org.gradle.api.DefaultTask;
 import org.gradle.api.tasks.OutputFile;
 import org.gradle.api.tasks.TaskAction;
+import org.gradle.work.DisableCachingByDefault;
 
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 
+@DisableCachingByDefault(because = "Generates version properties file")
 public class FMLVersionPropTask extends DefaultTask {
     @OutputFile
     DelayedFile outputFile;

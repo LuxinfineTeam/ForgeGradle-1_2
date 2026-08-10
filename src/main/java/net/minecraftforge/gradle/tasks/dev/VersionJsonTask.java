@@ -7,7 +7,10 @@ import net.minecraftforge.gradle.delayed.DelayedFile;
 import org.gradle.api.DefaultTask;
 import org.gradle.api.tasks.InputFile;
 import org.gradle.api.tasks.OutputFile;
+import org.gradle.api.tasks.PathSensitive;
+import org.gradle.api.tasks.PathSensitivity;
 import org.gradle.api.tasks.TaskAction;
+import org.gradle.work.DisableCachingByDefault;
 
 import java.io.File;
 import java.io.IOException;
@@ -15,10 +18,12 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.Map;
 
+@DisableCachingByDefault(because = "Transforms version JSON file")
 public class VersionJsonTask extends DefaultTask {
     private static final Gson GSON_FORMATTER = new GsonBuilder().setPrettyPrinting().create();
 
     @InputFile
+    @PathSensitive(PathSensitivity.RELATIVE)
     DelayedFile input;
 
     @OutputFile

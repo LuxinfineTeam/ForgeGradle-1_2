@@ -19,6 +19,7 @@ import org.gradle.api.model.ObjectFactory;
 import org.gradle.api.plugins.ExtensionContainer;
 import org.gradle.api.tasks.*;
 import org.gradle.api.tasks.bundling.AbstractArchiveTask;
+import org.gradle.work.DisableCachingByDefault;
 
 import javax.inject.Inject;
 import java.io.BufferedWriter;
@@ -30,6 +31,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Callable;
 
+@DisableCachingByDefault(because = "Reobfuscation task with dynamic artifact processing")
 public class ReobfTask extends DefaultTask {
     final private DomainObjectSet<ObfArtifact> obfOutput = GradleVersionUtils.choose("5.5",
             ReobfTask::getInternalDeprecatedDefaultDomain,
@@ -54,26 +56,32 @@ public class ReobfTask extends DefaultTask {
     private DelayedString mcVersion;
 
     @InputFile
+    @PathSensitive(PathSensitivity.NONE)
     private DelayedFile srg;
 
     @Optional
     @InputFile
+    @PathSensitive(PathSensitivity.NONE)
     private DelayedFile fieldCsv;
 
     @Optional
     @InputFile
+    @PathSensitive(PathSensitivity.NONE)
     private DelayedFile methodCsv;
 
     @Optional
     @InputFile
+    @PathSensitive(PathSensitivity.NONE)
     private DelayedFile exceptorCfg;
 
     @Optional
     @InputFile
+    @PathSensitive(PathSensitivity.NONE)
     private DelayedFile deobfFile;
 
     @Optional
     @InputFile
+    @PathSensitive(PathSensitivity.NONE)
     private DelayedFile recompFile;
 
     @Input
@@ -330,6 +338,7 @@ public class ReobfTask extends DefaultTask {
      * All of the files that will be signed by this task.
      */
     @InputFiles
+    @PathSensitive(PathSensitivity.RELATIVE)
     FileCollection getFilesToObfuscate() {
         List<File> collect = new ArrayList<>();
 
@@ -409,6 +418,7 @@ public class ReobfTask extends DefaultTask {
     }
 
     @InputFiles
+    @PathSensitive(PathSensitivity.RELATIVE)
     public FileCollection getExtraSrgFiles() {
         List<File> files = new ArrayList<>(extraSrgFiles.size());
 

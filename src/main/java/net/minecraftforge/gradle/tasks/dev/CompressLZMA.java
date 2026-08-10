@@ -6,13 +6,18 @@ import net.minecraftforge.gradle.delayed.DelayedFile;
 import org.gradle.api.DefaultTask;
 import org.gradle.api.tasks.InputFile;
 import org.gradle.api.tasks.OutputFile;
+import org.gradle.api.tasks.PathSensitive;
+import org.gradle.api.tasks.PathSensitivity;
 import org.gradle.api.tasks.TaskAction;
+import org.gradle.work.DisableCachingByDefault;
 
 import java.io.*;
 import java.nio.file.Files;
 
+@DisableCachingByDefault(because = "Compresses files with LZMA")
 public class CompressLZMA extends DefaultTask {
     @InputFile
+    @PathSensitive(PathSensitivity.RELATIVE)
     private DelayedFile inputFile;
 
     @OutputFile

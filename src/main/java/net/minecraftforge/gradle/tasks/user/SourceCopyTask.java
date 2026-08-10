@@ -22,8 +22,10 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.regex.Pattern;
 
+@UntrackedTask(because = "Copies and processes source files")
 public class SourceCopyTask extends DefaultTask {
     @InputFiles
+    @PathSensitive(PathSensitivity.RELATIVE)
     SourceDirectorySet source;
 
     @Input

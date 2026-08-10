@@ -12,6 +12,7 @@ import org.gradle.api.DefaultTask;
 import org.gradle.api.tasks.Input;
 import org.gradle.api.tasks.OutputFile;
 import org.gradle.api.tasks.TaskAction;
+import org.gradle.work.DisableCachingByDefault;
 
 import java.io.File;
 import java.io.IOException;
@@ -23,6 +24,7 @@ import java.nio.file.Files;
 import java.util.*;
 import java.util.Map.Entry;
 
+@DisableCachingByDefault(because = "Fetches changelog from remote server")
 public class ChangelogTask extends DefaultTask {
     @Input
     DelayedString serverRoot;

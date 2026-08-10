@@ -1,5 +1,6 @@
 package com.anatawa12.forge.gradle.separated;
 
+import net.minecraftforge.gradle.ExecHelper;
 import net.minecraftforge.gradle.JavaExecSpecHelper;
 import org.gradle.api.Project;
 
@@ -31,7 +32,7 @@ public class SeparatedLauncher {
     }
 
     public void run(final Project project) {
-        project.javaexec(javaExecSpec -> {
+        ExecHelper.javaexec(project, javaExecSpec -> {
             javaExecSpec.classpath(project.getConfigurations().getByName(configurationName));
             JavaExecSpecHelper.setMainClass(javaExecSpec, "com.anatawa12.forge.gradle.separated." + name + ".Main");
             javaExecSpec.args(args);

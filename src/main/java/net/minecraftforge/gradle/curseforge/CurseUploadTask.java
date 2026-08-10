@@ -38,6 +38,7 @@ import java.util.*;
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Objects.requireNonNull;
 
+@UntrackedTask(because = "Uploads files to external service")
 public class CurseUploadTask extends DefaultTask {
 
     public static final Collection<String> validReleaseTypes = ImmutableList.of("alpha", "beta", "release");
@@ -314,6 +315,7 @@ public class CurseUploadTask extends DefaultTask {
     }
 
     @InputFile
+    @PathSensitive(PathSensitivity.NONE)
     public Object getArtifact() {
         return artifact;
     }
@@ -340,6 +342,7 @@ public class CurseUploadTask extends DefaultTask {
     }
 
     @InputFiles
+    @PathSensitive(PathSensitivity.NONE)
     public Collection<Object> getAdditionalArtifacts() {
         return additionalArtifacts;
     }

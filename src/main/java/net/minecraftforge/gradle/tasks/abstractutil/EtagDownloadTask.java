@@ -10,6 +10,7 @@ import org.gradle.api.tasks.Input;
 import org.gradle.api.tasks.Internal;
 import org.gradle.api.tasks.OutputFile;
 import org.gradle.api.tasks.TaskAction;
+import org.gradle.api.tasks.UntrackedTask;
 
 import java.io.File;
 import java.io.IOException;
@@ -18,6 +19,7 @@ import java.net.*;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 
+@UntrackedTask(because = "Downloads files from external URLs")
 public class EtagDownloadTask extends DefaultTask {
     Object uri;
     Object file;

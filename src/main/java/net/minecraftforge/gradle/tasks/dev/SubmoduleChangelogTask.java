@@ -1,11 +1,10 @@
 package net.minecraftforge.gradle.tasks.dev;
 
+import net.minecraftforge.gradle.ExecHelper;
 import net.minecraftforge.gradle.delayed.DelayedFile;
 import org.gradle.api.DefaultTask;
-import org.gradle.api.tasks.Input;
-import org.gradle.api.tasks.InputDirectory;
-import org.gradle.api.tasks.OutputFile;
-import org.gradle.api.tasks.TaskAction;
+import org.gradle.api.tasks.*;
+import org.gradle.work.DisableCachingByDefault;
 
 import java.io.BufferedWriter;
 import java.io.ByteArrayOutputStream;
@@ -14,6 +13,7 @@ import java.io.IOException;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 
+@DisableCachingByDefault(because = "Generates changelog from git submodule")
 public class SubmoduleChangelogTask extends DefaultTask {
     private DelayedFile submodule;
     @Input
@@ -71,7 +71,7 @@ public class SubmoduleChangelogTask extends DefaultTask {
     private String[] runGit(final File dir, final String... args) {
         final ByteArrayOutputStream out = new ByteArrayOutputStream();
 
-        getProject().exec(exec -> {
+        ExecHelper.exec(getProject(), exec -> {
             exec.setExecutable("git");
             exec.args((Object[]) args);
             exec.setStandardOutput(out);
@@ -82,6 +82,7 @@ public class SubmoduleChangelogTask extends DefaultTask {
     }
 
     @InputDirectory
+    @PathSensitive(PathSensitivity.RELATIVE)
     public File getSubmodule() {
         return submodule.call();
     }

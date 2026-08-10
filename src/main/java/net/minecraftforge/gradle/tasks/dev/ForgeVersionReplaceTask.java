@@ -5,13 +5,17 @@ import net.minecraftforge.gradle.delayed.DelayedString;
 import org.gradle.api.DefaultTask;
 import org.gradle.api.tasks.Input;
 import org.gradle.api.tasks.InputFile;
+import org.gradle.api.tasks.PathSensitive;
+import org.gradle.api.tasks.PathSensitivity;
 import org.gradle.api.tasks.TaskAction;
+import org.gradle.work.DisableCachingByDefault;
 
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 
+@DisableCachingByDefault(because = "Modifies files in place")
 public class ForgeVersionReplaceTask extends DefaultTask {
     DelayedFile outputFile;
     DelayedString replacement;
@@ -34,6 +38,7 @@ public class ForgeVersionReplaceTask extends DefaultTask {
     }
 
     @InputFile
+    @PathSensitive(PathSensitivity.RELATIVE)
     public File getOutputFile() {
         return outputFile.call();
     }
