@@ -33,11 +33,16 @@ buildscript {
 apply plugin: 'forge'
 
 [compileJava, compileTestJava]*.options*.encoding = 'UTF-8'
-sourceCompatibility = '1.8'
-targetCompatibility = '1.8'
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(8)
+    }
+}
 
 version = "1.0"
-archivesBaseName = "MyModName"
+base {
+    archivesName = "MyModName"
+}
 
 minecraft {
     version = "1.7.10-10.13.4.1614-1.7.10"
@@ -55,13 +60,6 @@ minecraft {
     
     // Если по какой-то причине вам не нужно подключение AT из зависимостей - расскоментируйте эту строку
     //useAtFromDependencies=false
-}
-
-// Добавляем флаг компилятора, чтобы итоговый билд работал на java8
-tasks.withType(JavaCompile) {
-    if (JavaVersion.current().isJava9Compatible()) {
-        options.compilerArgs.addAll(['--release', '8'])
-    }
 }
 ```
 
