@@ -4,7 +4,7 @@
 ### Список изменений:
 - Поддержка запуска gradle на JDK 17-21
 - Сохранение module (новое поле в IntelliJ IDEA конфигурациях) при запуске genIntellijRuns
-- Использование apache compress для замены удаленного Pack200 класса из новых версий Java
+- Использование org.glavo:pack200:0.3.0 для замены удаленного Pack200 класса из новых версий Java
 - Компиляция класса GradleStart на java8 (изначально под java6 собиралось)
 - Перенос таска genIntellijRuns в группу "ForgeGradle" (изначаньно таск валялся в other)
 - Автоматический поиск Java8 через gradle toolchain api для запуска майнкрафт через runClient / runServer

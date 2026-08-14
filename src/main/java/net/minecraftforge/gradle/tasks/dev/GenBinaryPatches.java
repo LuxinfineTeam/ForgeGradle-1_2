@@ -10,6 +10,7 @@ import com.nothome.delta.Delta;
 import lzma.streams.LzmaOutputStream;
 import net.minecraftforge.gradle.delayed.DelayedFile;
 import net.minecraftforge.gradle.delayed.DelayedFileTree;
+import org.glavo.pack200.Pack200;
 import org.gradle.api.DefaultTask;
 import org.gradle.api.tasks.InputFile;
 import org.gradle.api.tasks.OutputFile;
@@ -26,7 +27,6 @@ import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.util.*;
 import java.util.jar.*;
-import org.apache.commons.compress.java.util.jar.Pack200;
 import java.util.zip.Adler32;
 import java.util.zip.ZipEntry;
 
