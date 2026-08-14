@@ -114,7 +114,7 @@ dependencies {
     implementation("com.google.code.gson:gson:2.10.1") // Used instead of Argo for building changelog.
     implementation("org.glavo:pack200:0.3.0") // Pack200 support for Java 14+
 
-    implementation("com.anatawa12.forge:SpecialSource:1.11.1") // deobf and reobs
+    implementation("net.md-5:SpecialSource:1.11.6") // deobf and reobs
 
     // because curse
     implementation("org.apache.httpcomponents:httpclient:4.5.14")
