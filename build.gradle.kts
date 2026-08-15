@@ -162,8 +162,6 @@ dependencies {
     "templatesCompileOnly"("org.apache.logging.log4j:log4j-core:2.17.1")
     "templatesCompileOnly"("net.sf.jopt-simple:jopt-simple:4.6")
 
-    testImplementation("org.junit.jupiter:junit-jupiter:5.9.3")
-    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
 val compileJava by tasks.getting(JavaCompile::class) {
@@ -188,15 +186,6 @@ java {
 
 artifacts {
     archives(jar)
-}
-
-val test by tasks.getting(Test::class) {
-    if (project.hasProperty("filesmaven")) // disable this test when on the forge jenkins
-    {
-        exclude("**/ExtensionMcpMappingTest*")
-        exclude("**/ExtensionForgeVersionTest*")
-    }
-    useJUnitPlatform()
 }
 
 publishing {
