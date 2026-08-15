@@ -121,10 +121,6 @@ final class DevConstants {
     static final String BUKKIT_SOURCES = "{BUKKIT_DIR}/src/main/java";
     static final String EXTRACTED_RES = "{BUILD_DIR}/extractedResources";
 
-    // CrowdIn Stuff
-    static final String CROWDIN_ZIP = "{BUILD_DIR}/crowdin-localizations.zip";
-    static final String CROWDIN_FORGEID = "minecraft-forge";
-
     // build configurations. same as in UserConstants
     public static final String CONFIG_RUNTIME = UserConstants.CONFIG_RUNTIME;
     public static final String CONFIG_RUNTIME_CLASSPATH = UserConstants.CONFIG_RUNTIME_CLASSPATH;
