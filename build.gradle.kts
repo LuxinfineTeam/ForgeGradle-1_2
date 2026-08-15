@@ -97,17 +97,17 @@ dependencies {
     implementation(gradleApi())
 
     // moved to the beginning to be the overrider
-    implementation("org.ow2.asm:asm:9.5")
-    implementation("org.ow2.asm:asm-tree:9.5")
-    implementation("com.google.guava:guava:31.1-jre")
+    implementation("org.ow2.asm:asm:9.10.1")
+    implementation("org.ow2.asm:asm-tree:9.10.1")
+    implementation("com.google.guava:guava:33.6.0-jre")
 
-    implementation("com.opencsv:opencsv:5.7.1") // reading CSVs.. also used by SpecialSource
+    implementation("com.opencsv:opencsv:5.12.0") // reading CSVs.. also used by SpecialSource
     implementation("com.cloudbees:diff4j:1.3") // for difing and patching
-    implementation("com.github.abrarsyed.jastyle:jAstyle:1.2") // formatting
+    implementation("com.github.abrarsyed.jastyle:jAstyle:1.3") // formatting
 
     implementation("com.github.jponge:lzma-java:1.3") // replaces the LZMA binary
     implementation("com.nothome:javaxdelta:2.0.1") // GDIFF implementation for BinPatches
-    implementation("com.google.code.gson:gson:2.10.1") // Used instead of Argo for building changelog.
+    implementation("com.google.code.gson:gson:2.14.0") // Used instead of Argo for building changelog.
     implementation("org.glavo:pack200:0.3.0") // Pack200 support for Java 14+
 
     implementation("net.md-5:SpecialSource:1.11.6") // deobf and reobs
