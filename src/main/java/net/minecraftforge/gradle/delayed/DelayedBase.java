@@ -3,12 +3,10 @@ package net.minecraftforge.gradle.delayed;
 import groovy.lang.Closure;
 import net.minecraftforge.gradle.ProjectBuildDirHelper;
 import net.minecraftforge.gradle.common.BaseExtension;
-import net.minecraftforge.gradle.common.JenkinsExtension;
 import org.gradle.api.Project;
 
 import java.util.function.Supplier;
 
-import static net.minecraftforge.gradle.common.Constants.EXT_NAME_JENKINS;
 import static net.minecraftforge.gradle.common.Constants.EXT_NAME_MC;
 
 @SuppressWarnings("serial")
@@ -63,7 +61,6 @@ public abstract class DelayedBase<V> extends Closure<V> implements Supplier<V> {
     public static String resolve(String pattern, Project project, IDelayedResolver... resolvers) {
         project.getLogger().debug("Resolving: " + pattern);
         BaseExtension extension = (BaseExtension) project.getExtensions().getByName(EXT_NAME_MC);
-        JenkinsExtension jenkins = (JenkinsExtension) project.getExtensions().getByName(EXT_NAME_JENKINS);
 
         String build = "0";
         if (System.getenv().containsKey("BUILD_NUMBER")) {
@@ -89,11 +86,6 @@ public abstract class DelayedBase<V> extends Closure<V> implements Supplier<V> {
             pattern = pattern.replace("{MAPPING_CHANNEL_DOC}", extension.getMappingsChannelNoSubtype());
             pattern = pattern.replace("{MAPPING_VERSION}", extension.getMappingsVersion());
         }
-
-        pattern = pattern.replace("{JENKINS_SERVER}", jenkins.getServer());
-        pattern = pattern.replace("{JENKINS_JOB}", jenkins.getJob());
-        pattern = pattern.replace("{JENKINS_AUTH_NAME}", jenkins.getAuthName());
-        pattern = pattern.replace("{JENKINS_AUTH_PASSWORD}", jenkins.getAuthPassword());
 
         project.getLogger().debug("Resolved:  " + pattern);
         return pattern;

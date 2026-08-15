@@ -39,7 +39,6 @@ public class Constants {
 
     // extension nam
     public static final String EXT_NAME_MC = "minecraft";
-    public static final String EXT_NAME_JENKINS = "jenkins";
 
     /**
      * @deprecated unused

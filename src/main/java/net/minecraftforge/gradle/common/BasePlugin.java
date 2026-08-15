@@ -94,7 +94,6 @@ public abstract class BasePlugin<K extends BaseExtension> implements Plugin<Proj
 
         // extension objects
         project.getExtensions().create(Constants.EXT_NAME_MC, getExtensionClass(), this);
-        project.getExtensions().create(Constants.EXT_NAME_JENKINS, JenkinsExtension.class, project);
 
         // repos
         project.allprojects(proj -> {

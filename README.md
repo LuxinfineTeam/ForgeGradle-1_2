@@ -11,6 +11,8 @@
 - Удалена задача проверки совместимости зависимостей с Java 8
 - Удалены неиспользуемые зависимости (wagon-ssh, trove4j, httpclient/httpmime)
 - Удалена интеграция с Crowdin API (задача загрузки локализаций)
+- Удалены dev-задачи для разработки Forge (tasks/dev/, DevConstants)
+- Удалена интеграция с Jenkins CI (JenkinsExtension)
 - Подключен Dependabot для автоматического обновления зависимостей
 - Поддержка запуска gradle на JDK 17-21
 - Сохранение module (новое поле в IntelliJ IDEA конфигурациях) при запуске genIntellijRuns
