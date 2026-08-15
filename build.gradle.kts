@@ -149,7 +149,7 @@ dependencies {
     "templatesCompileOnly"("com.google.code.gson:gson:2.14.0")
     "templatesCompileOnly"("org.apache.logging.log4j:log4j-api:2.17.1")
     "templatesCompileOnly"("org.apache.logging.log4j:log4j-core:2.17.1")
-    "templatesCompileOnly"("net.sf.jopt-simple:jopt-simple:4.6")
+    "templatesCompileOnly"("net.sf.jopt-simple:jopt-simple:5.0.4")
 
 }
 
