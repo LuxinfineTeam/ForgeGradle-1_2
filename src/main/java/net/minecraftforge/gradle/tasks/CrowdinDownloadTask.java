@@ -7,11 +7,7 @@ import net.minecraftforge.gradle.FileUtils;
 import net.minecraftforge.gradle.common.Constants;
 import org.gradle.api.DefaultTask;
 import org.gradle.api.file.FileCollection;
-import org.gradle.api.tasks.Input;
-import org.gradle.api.tasks.Internal;
-import org.gradle.api.tasks.OutputFiles;
-import org.gradle.api.tasks.TaskAction;
-import org.gradle.api.tasks.UntrackedTask;
+import org.gradle.api.tasks.*;
 
 import java.io.File;
 import java.io.IOException;

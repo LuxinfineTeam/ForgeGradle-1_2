@@ -1,6 +1,5 @@
 package net.minecraftforge.gradle.dev;
 
-import net.minecraftforge.gradle.common.Constants;
 import net.minecraftforge.gradle.user.UserConstants;
 
 final class DevConstants {

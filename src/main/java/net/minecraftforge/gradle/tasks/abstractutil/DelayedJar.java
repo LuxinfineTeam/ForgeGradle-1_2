@@ -4,8 +4,8 @@ import groovy.lang.Closure;
 import org.gradle.api.file.DirectoryProperty;
 import org.gradle.api.file.FileSystemOperations;
 import org.gradle.api.provider.Property;
-import org.gradle.api.tasks.bundling.Jar;
 import org.gradle.api.tasks.UntrackedTask;
+import org.gradle.api.tasks.bundling.Jar;
 
 import javax.inject.Inject;
 

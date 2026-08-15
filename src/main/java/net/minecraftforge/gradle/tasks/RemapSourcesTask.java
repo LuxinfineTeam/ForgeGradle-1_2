@@ -1,8 +1,7 @@
 package net.minecraftforge.gradle.tasks;
 
-import com.opencsv.CSVParser;
-import com.opencsv.CSVReader;
 import com.google.common.base.Strings;
+import com.opencsv.CSVReader;
 import com.opencsv.exceptions.CsvException;
 import net.minecraftforge.gradle.StringUtils;
 import net.minecraftforge.gradle.common.Constants;
