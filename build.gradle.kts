@@ -263,10 +263,6 @@ gradlePlugin {
             id = "forge"
             implementationClass = "net.minecraftforge.gradle.user.patch.ForgeUserPlugin"
         }
-        create("launch4j") {
-            id = "launch4j"
-            implementationClass = "edu.sc.seis.launch4j.Launch4jPlugin"
-        }
         create("liteloader") {
             id = "liteloader"
             implementationClass = "net.minecraftforge.gradle.user.lib.LiteLoaderPlugin"

@@ -7,7 +7,6 @@ final class DevConstants {
     private DevConstants() {}
 
     static final String INSTALLER_URL = "https://maven.minecraftforge.net/net/minecraftforge/installer/{INSTALLER_VERSION}/installer-{INSTALLER_VERSION}-shrunk.jar";
-    static final String LAUNCH4J_URL = "https://files.minecraftforge.net/launch4j/launch4j-3.0.0-" + Constants.OPERATING_SYSTEM + "-" + Constants.SYSTEM_ARCH + ".zip";
 
     static final String DEOBF_DATA = "{CACHE_DIR}/minecraft/net/minecraft/minecraft_srg/{MC_VERSION}/deobfuscation_data-{MC_VERSION}.lzma";
 
@@ -24,7 +23,6 @@ final class DevConstants {
     static final String MCP_EXC = "{BUILD_DIR}/tmp/mcp.exc";
     static final String JAVADOC_TMP = "{BUILD_DIR}/tmp/javadoc";
     static final String BINPATCH_TMP = "{BUILD_DIR}/tmp/bin_patches.jar";
-    static final String LAUNCH4J_DIR = "{BUILD_DIR}/launch4j_exec";
     static final String VERSION_JSON = "{BUILD_DIR}/tmp/version.json";
     static final String USERDEV_RANGEMAP = "{BUILD_DIR}/tmp/user_dev_range.txt";
     static final String EXC_MODIFIERS_DIRTY = "{BUILD_DIR}/tmp/exc_modifiers_dirty.txt";
@@ -52,7 +50,6 @@ final class DevConstants {
     static final String ZIP_DECOMP_FORGE = "{CACHE_DIR}/minecraft/net/minecraft/minecraft_decomp/{MC_VERSION}/minecraft_decomp_forge-{MC_VERSION}.zip";
     static final String ZIP_DECOMP_CDN = "{CACHE_DIR}/minecraft/net/minecraft/minecraft_decomp/{MC_VERSION}/minecraft_decomp_cauldron-{MC_VERSION}.zip";
     static final String ZIP_DECOMP_EDU = "{CACHE_DIR}/minecraft/net/minecraft/minecraft_decomp/{MC_VERSION}/minecraft_decomp_edu-{MC_VERSION}.zip";
-    static final String LAUNCH4J = "{CACHE_DIR}/minecraft/launch4j.zip";
 
     // fml intermediate jars
     static final String ZIP_PATCHED_FML = "{BUILD_DIR}/fmlTmp/minecraft_patched.zip";
