@@ -262,10 +262,6 @@ gradlePlugin {
             id = "forge"
             implementationClass = "net.minecraftforge.gradle.user.patch.ForgeUserPlugin"
         }
-        create("liteloader") {
-            id = "liteloader"
-            implementationClass = "net.minecraftforge.gradle.user.lib.LiteLoaderPlugin"
-        }
     }
 }
 

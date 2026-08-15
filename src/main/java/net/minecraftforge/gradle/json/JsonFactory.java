@@ -2,7 +2,6 @@ package net.minecraftforge.gradle.json;
 
 import com.google.common.base.Strings;
 import com.google.gson.*;
-import net.minecraftforge.gradle.json.LiteLoaderJson.VersionObject;
 import net.minecraftforge.gradle.json.version.AssetIndex;
 import net.minecraftforge.gradle.json.version.Version;
 
@@ -23,7 +22,6 @@ public class JsonFactory {
         builder.registerTypeAdapterFactory(new EnumAdaptorFactory());
         builder.registerTypeAdapter(Date.class, new DateAdapter());
         builder.registerTypeAdapter(File.class, new FileAdapter());
-        builder.registerTypeAdapter(VersionObject.class, new LiteLoaderJson.VersionAdapter());
         builder.enableComplexMapKeySerialization();
         builder.setPrettyPrinting();
         GSON = builder.create();
@@ -49,13 +47,6 @@ public class JsonFactory {
     public static AssetIndex loadAssetsIndex(File json) throws JsonSyntaxException, JsonIOException, IOException {
         FileReader reader = new FileReader(json);
         AssetIndex a = GSON.fromJson(reader, AssetIndex.class);
-        reader.close();
-        return a;
-    }
-
-    public static LiteLoaderJson loadLiteLoaderJson(File json) throws JsonSyntaxException, JsonIOException, IOException {
-        FileReader reader = new FileReader(json);
-        LiteLoaderJson a = GSON.fromJson(reader, LiteLoaderJson.class);
         reader.close();
         return a;
     }
