@@ -93,8 +93,6 @@ val jar by tasks.getting(Jar::class) {
     }
 }
 
-val deployerJars by configurations.creating
-
 dependencies {
     implementation(gradleApi())
 
@@ -142,9 +140,6 @@ dependencies {
     implementation("org.eclipse.platform:org.eclipse.text:3.11.0") // locked
     implementation("org.osgi:org.osgi.service.prefs:1.1.2")
     implementation("org.osgi:osgi.annotation:8.1.0")
-
-    // stupid maven
-    deployerJars("org.apache.maven.wagon:wagon-ssh:3.5.3")
 
     //Stuff used in the GradleStart classes
     if (gradleStartDev) {
