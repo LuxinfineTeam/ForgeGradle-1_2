@@ -7,8 +7,8 @@ import org.gradle.api.Action;
 import org.gradle.api.DefaultTask;
 import org.gradle.api.Task;
 import org.gradle.api.file.FileCollection;
-import org.gradle.api.tasks.Optional;
 import org.gradle.api.tasks.*;
+import org.gradle.api.tasks.Optional;
 
 import java.io.File;
 import java.lang.annotation.ElementType;

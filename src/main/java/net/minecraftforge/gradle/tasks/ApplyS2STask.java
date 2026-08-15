@@ -11,8 +11,8 @@ import net.minecraftforge.srg2source.util.io.*;
 import org.gradle.api.DefaultTask;
 import org.gradle.api.file.FileCollection;
 import org.gradle.api.model.ObjectFactory;
-import org.gradle.api.tasks.Optional;
 import org.gradle.api.tasks.*;
+import org.gradle.api.tasks.Optional;
 
 import javax.inject.Inject;
 import java.io.BufferedWriter;

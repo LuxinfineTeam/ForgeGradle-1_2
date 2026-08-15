@@ -4,14 +4,13 @@ import com.google.common.io.ByteStreams;
 import lzma.streams.LzmaOutputStream;
 import net.minecraftforge.gradle.delayed.DelayedFile;
 import org.gradle.api.DefaultTask;
-import org.gradle.api.tasks.InputFile;
-import org.gradle.api.tasks.OutputFile;
-import org.gradle.api.tasks.PathSensitive;
-import org.gradle.api.tasks.PathSensitivity;
-import org.gradle.api.tasks.TaskAction;
+import org.gradle.api.tasks.*;
 import org.gradle.work.DisableCachingByDefault;
 
-import java.io.*;
+import java.io.BufferedInputStream;
+import java.io.File;
+import java.io.IOException;
+import java.io.OutputStream;
 import java.nio.file.Files;
 
 @DisableCachingByDefault(because = "Compresses files with LZMA")

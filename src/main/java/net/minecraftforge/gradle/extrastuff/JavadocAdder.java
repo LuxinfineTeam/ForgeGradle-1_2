@@ -2,7 +2,10 @@ package net.minecraftforge.gradle.extrastuff;
 
 import net.minecraftforge.gradle.common.Constants;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.LinkedList;
+import java.util.List;
 
 public final class JavadocAdder {
     private JavadocAdder() { /* no constructing */ }

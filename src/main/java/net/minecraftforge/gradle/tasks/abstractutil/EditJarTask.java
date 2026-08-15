@@ -2,13 +2,7 @@ package net.minecraftforge.gradle.tasks.abstractutil;
 
 import com.google.common.io.ByteStreams;
 import net.minecraftforge.gradle.delayed.DelayedFile;
-import org.gradle.api.tasks.InputFile;
-import org.gradle.api.tasks.Internal;
-import org.gradle.api.tasks.OutputFile;
-import org.gradle.api.tasks.PathSensitive;
-import org.gradle.api.tasks.PathSensitivity;
-import org.gradle.api.tasks.TaskAction;
-import org.gradle.api.tasks.UntrackedTask;
+import org.gradle.api.tasks.*;
 
 import java.io.File;
 import java.io.IOException;
