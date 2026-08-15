@@ -5,3 +5,7 @@ updates:
     schedule:
       interval: "monthly"
     open-pull-requests-limit: 10
+    ignore:
+      # Eclipse JDT libraries are locked to specific versions for Java 8 compatibility
+      - dependency-name: "org.eclipse.platform:*"
+      - dependency-name: "org.eclipse.jdt:*"
