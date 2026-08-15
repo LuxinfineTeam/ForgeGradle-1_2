@@ -16,6 +16,7 @@ public class UserExtension extends BaseExtension {
     private boolean isDecomp = false;
     private List<String> clientJvmArgs = new ArrayList<>();
     private List<String> serverJvmArgs = new ArrayList<>();
+    private boolean excludeScalaLibs = true;
 
     public UserExtension(UserBasePlugin<? extends UserExtension> plugin) {
         super(plugin);
@@ -74,5 +75,13 @@ public class UserExtension extends BaseExtension {
 
     public void setServerJvmArgs(List<String> serverJvmArgs) {
         this.serverJvmArgs = serverJvmArgs;
+    }
+
+    public boolean isExcludeScalaLibs() {
+        return excludeScalaLibs;
+    }
+
+    public void setExcludeScalaLibs(boolean excludeScalaLibs) {
+        this.excludeScalaLibs = excludeScalaLibs;
     }
 }

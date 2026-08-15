@@ -395,8 +395,21 @@ public abstract class UserBasePlugin<T extends UserExtension> extends BasePlugin
         // actual dependencies
         if (project.getConfigurations().getByName(depConfig).getState() == State.UNRESOLVED) {
             for (Library lib : version.getLibraries()) {
-                if (lib.natives == null)
-                    handler.add(depConfig, lib.getArtifactName());
+                if (lib.natives == null) {
+                    String artifactName = lib.getArtifactName();
+
+                    // Filter out Scala and Akka libraries if excludeScalaLibs is enabled
+                    if (getExtension().isExcludeScalaLibs()) {
+                        if (artifactName.contains("org.scala-lang") ||
+                            artifactName.contains("com.typesafe.akka") ||
+                            artifactName.contains(":scala-")) {
+                            log.debug("Excluding Scala/Akka library: " + artifactName);
+                            continue;
+                        }
+                    }
+
+                    handler.add(depConfig, artifactName);
+                }
             }
         } else
             log.debug("RESOLVED: " + depConfig);

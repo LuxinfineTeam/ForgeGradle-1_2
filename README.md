@@ -21,6 +21,7 @@
 - Перенос таска genIntellijRuns в группу "ForgeGradle" (изначаньно таск валялся в other)
 - Автоматический поиск Java8 через gradle toolchain api для запуска майнкрафт через runClient / runServer
 - Добавлены проперти clientJvmArgs и serverJvmArgs в minecraft конфигурации, позволяющие настроить JVM аргументы запуска. Можно использовать для настроек по типу -Dfml.coreMods.load
+- Добавлен параметр excludeScalaLibs (по умолчанию true) для исключения Scala и Akka библиотек из зависимостей Minecraft
 - Небольшие оптимизации общей работы плагина за счет перехода на java nio в некоторых местах
 - Поддержка автоматического применения _at.cfg из всех зависимостей проекта при setupDecompWorkspace. При необходимости можно отключить указав useAtFromDependencies=false в minecraft конфигурации
 - Поддержка современной версии Gradle - 9.7.0
@@ -73,6 +74,9 @@ minecraft {
     
     // Если по какой-то причине вам не нужно подключение AT из зависимостей - расскоментируйте эту строку
     //useAtFromDependencies=false
+    
+    // Если нужно включить Scala библиотеки (по умолчанию они исключаются)
+    //excludeScalaLibs=false
 }
 ```
 
