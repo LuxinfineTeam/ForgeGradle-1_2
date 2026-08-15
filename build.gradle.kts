@@ -104,7 +104,6 @@ dependencies {
     implementation("com.opencsv:opencsv:5.7.1") // reading CSVs.. also used by SpecialSource
     implementation("com.cloudbees:diff4j:1.3") // for difing and patching
     implementation("com.github.abrarsyed.jastyle:jAstyle:1.2") // formatting
-    implementation("net.sf.trove4j:trove4j:2.1.0") // because its awesome.
 
     implementation("com.github.jponge:lzma-java:1.3") // replaces the LZMA binary
     implementation("com.nothome:javaxdelta:2.0.1") // GDIFF implementation for BinPatches
@@ -112,10 +111,6 @@ dependencies {
     implementation("org.glavo:pack200:0.3.0") // Pack200 support for Java 14+
 
     implementation("net.md-5:SpecialSource:1.11.6") // deobf and reobs
-
-    // because curse
-    implementation("org.apache.httpcomponents:httpclient:4.5.14")
-    implementation("org.apache.httpcomponents:httpmime:4.5.14")
 
     // mcp stuff
     implementation("de.oceanlabs.mcp:RetroGuard:3.6.6")
@@ -245,10 +240,6 @@ publishing {
 gradlePlugin {
     isAutomatedPublishing = false
     plugins {
-        create("curseforge") {
-            id = "curseforge"
-            implementationClass = "net.minecraftforge.gradle.curseforge.CursePlugin"
-        }
         create("fml") {
             id = "fml"
             implementationClass = "net.minecraftforge.gradle.user.patch.FmlUserPlugin"
