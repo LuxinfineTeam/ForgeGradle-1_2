@@ -88,7 +88,7 @@ val jar by tasks.getting(Jar::class) {
             "version" to project.version,
             "javaCompliance" to project.java.targetCompatibility,
             "group" to project.group,
-            "Implementation-Version" to "${project.version}${getGitHash()}"
+            "Implementation-Version" to project.version
         ))
     }
 }
@@ -298,11 +298,3 @@ tasks.check.get().dependsOn(dependenciesJava8CompatibilityCheck)
 // write out version so its convenient for doc deployment
 file("build").mkdirs()
 file("build/version.txt").writeText("$version")
-
-fun getGitHash(): String {
-    val process = ProcessBuilder("git", "rev-parse", "--short", "HEAD")
-        .directory(file("."))
-        .start()
-    process.waitFor()
-    return "-" + (if (process.exitValue() != 0) "unknown" else process.inputStream.reader().use { it.readText() }.trim())
-}
