@@ -132,7 +132,7 @@ dependencies {
     implementation("org.eclipse.platform:org.eclipse.core.contenttype:3.7.1000") // locked
     implementation("org.eclipse.platform:org.eclipse.core.expressions:3.7.100") // locked
     implementation("org.eclipse.platform:org.eclipse.core.filesystem:1.7.700") // locked
-    implementation("org.eclipse.platform:org.eclipse.core.jobs:3.11.0") // locked
+    implementation("org.eclipse.platform:org.eclipse.core.jobs:3.15.800") // locked
     implementation("org.eclipse.platform:org.eclipse.core.resources:3.14.0") // locked
     implementation("org.eclipse.platform:org.eclipse.core.runtime:3.22.0") // locked
     implementation("org.eclipse.platform:org.eclipse.equinox.app:1.5.100") // locked
@@ -140,7 +140,7 @@ dependencies {
     implementation("org.eclipse.platform:org.eclipse.equinox.preferences:3.9.100") // locked
     implementation("org.eclipse.platform:org.eclipse.equinox.registry:3.10.200") // locked
     implementation("org.eclipse.platform:org.eclipse.osgi:3.18.400")
-    implementation("org.eclipse.platform:org.eclipse.text:3.11.0") // locked
+    implementation("org.eclipse.platform:org.eclipse.text:3.15.800") // locked
     implementation("org.osgi:org.osgi.service.prefs:1.1.2")
     implementation("org.osgi:osgi.annotation:8.1.0")
 
