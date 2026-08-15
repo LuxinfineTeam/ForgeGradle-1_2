@@ -87,31 +87,6 @@ final class DevConstants {
     static final String EXTRA_JSON_REL = "jsons/{MC_VERSION}-rel.json";
     static final String EXTRA_JSON_BASE = "jsons/{MC_VERSION}.json";
 
-    // eclipse folders      More stuff only for the Dev plugins
-    static final String WORKSPACE_ZIP = "eclipse-workspace-dev.zip";
-    static final String WORKSPACE = "eclipse";
-    static final String ECLIPSE_CLEAN = WORKSPACE + "/Clean";
-    static final String ECLIPSE_CLEAN_SRC = ECLIPSE_CLEAN + "/src/main/java";
-    static final String ECLIPSE_CLEAN_START = ECLIPSE_CLEAN + "/src/main/start";
-    static final String ECLIPSE_CLEAN_RES = ECLIPSE_CLEAN + "/src/main/resources";
-    static final String ECLIPSE_FML = WORKSPACE + "/FML";
-    static final String ECLIPSE_FML_SRC = ECLIPSE_FML + "/src/main/java";
-    static final String ECLIPSE_FML_START = ECLIPSE_FML + "/src/main/start";
-    static final String ECLIPSE_FML_RES = ECLIPSE_FML + "/src/main/resources";
-    static final String ECLIPSE_FORGE = WORKSPACE + "/Forge";
-    static final String ECLIPSE_FORGE_SRC = ECLIPSE_FORGE + "/src/main/java";
-    static final String ECLIPSE_FORGE_START = ECLIPSE_FORGE + "/src/main/start";
-    static final String ECLIPSE_FORGE_RES = ECLIPSE_FORGE + "/src/main/resources";
-    static final String ECLIPSE_CDN = WORKSPACE + "/cauldron";
-    static final String ECLIPSE_CDN_SRC = ECLIPSE_CDN + "/src/main/java";
-    static final String ECLIPSE_CDN_RES = ECLIPSE_CDN + "/src/main/resources";
-    static final String ECLIPSE_EDU = WORKSPACE + "/McEdu";
-    static final String ECLIPSE_EDU_SRC = ECLIPSE_EDU + "/src/main/java";
-    static final String ECLIPSE_EDU_RES = ECLIPSE_EDU + "/src/main/resources";
-    static final String ECLIPSE_RUN = WORKSPACE + "/run";
-    static final String ECLIPSE_NATIVES = ECLIPSE_RUN + "/bin/natives";
-    static final String ECLIPSE_ASSETS = ECLIPSE_RUN + "/assets";
-
     // FML stuff only...
     static final String FML_PATCH_DIR = "{FML_DIR}/patches/minecraft";
     static final String FML_SOURCES = "{FML_DIR}/src/main/java";

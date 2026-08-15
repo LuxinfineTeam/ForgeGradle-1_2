@@ -3,7 +3,6 @@ import java.util.zip.ZipInputStream
 plugins {
     java
     idea
-    eclipse
     `java-gradle-plugin`
     `maven-publish`
 }

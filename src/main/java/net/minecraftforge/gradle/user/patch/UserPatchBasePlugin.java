@@ -68,43 +68,6 @@ public abstract class UserPatchBasePlugin extends UserBasePlugin<UserPatchExtens
             remap.setInJar(processed);
             remap.dependsOn(patch);
         }
-
-        // configure eclipse task to do extra stuff.
-        project.getTasks().getByName("eclipse").doLast(new Action<Task>() {
-            @Override
-            public void execute(Task arg0) {
-                // find the file
-                File f = new File(ECLIPSE_LOCATION);
-                if (!f.exists()) // folder doesnt exist
-                {
-                    return;
-                }
-                File[] files = f.listFiles();
-                if (files.length < 1) // empty folder
-                    return;
-
-                f = new File(files[0], ".location");
-
-                if (f.exists()) // if .location exists
-                {
-                    String projectDir = "URI//" + project.getProjectDir().toURI();
-                    try {
-                        byte[] LOCATION_BEFORE = new byte[]{0x40, (byte) 0xB1, (byte) 0x8B, (byte) 0x81, 0x23, (byte) 0xBC, 0x00, 0x14, 0x1A, 0x25, (byte) 0x96, (byte) 0xE7, (byte) 0xA3, (byte) 0x93, (byte) 0xBE, 0x1E};
-                        byte[] LOCATION_AFTER = new byte[]{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, (byte) 0xC0, 0x58, (byte) 0xFB, (byte) 0xF3, 0x23, (byte) 0xBC, 0x00, 0x14, 0x1A, 0x51, (byte) 0xF3, (byte) 0x8C, 0x7B, (byte) 0xBB, 0x77, (byte) 0xC6};
-
-                        FileOutputStream fos = new FileOutputStream(f);
-                        fos.write(LOCATION_BEFORE); //Unknown but w/e
-                        fos.write((byte) ((projectDir.length() & 0xFF) >> 8));
-                        fos.write((byte) ((projectDir.length() & 0xFF) >> 0));
-                        fos.write(projectDir.getBytes());
-                        fos.write(LOCATION_AFTER); //Unknown but w/e
-                        fos.close();
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
-                }
-            }
-        });
     }
 
     @Override

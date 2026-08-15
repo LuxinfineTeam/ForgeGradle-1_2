@@ -80,7 +80,6 @@ public abstract class UserBasePlugin<T extends UserExtension> extends BasePlugin
             });
             applyExternalPlugin("maven");
         }
-        this.applyExternalPlugin("eclipse");
         this.applyExternalPlugin("idea");
 
         hasScalaBefore = project.getPlugins().hasPlugin("scala");

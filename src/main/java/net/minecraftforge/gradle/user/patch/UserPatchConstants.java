@@ -11,7 +11,6 @@ public class UserPatchConstants {
     static final String JAVADOC_JAR = "{USER_DEV}/javadoc.jar";
 
     static final String JSON = "{USER_DEV}/dev.json";
-    static final String ECLIPSE_LOCATION = "eclipse/.metadata/.plugins/org.eclipse.core.resources/.projects";
 
     static final String JAR_BINPATCHED = "{API_CACHE_DIR}/{API_NAME}-binpatched-{API_VERSION}.jar";
 
