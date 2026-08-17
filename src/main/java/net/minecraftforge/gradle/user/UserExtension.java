@@ -17,6 +17,7 @@ public class UserExtension extends BaseExtension {
     private List<String> clientJvmArgs = new ArrayList<>();
     private List<String> serverJvmArgs = new ArrayList<>();
     private boolean excludeScalaLibs = true;
+    private boolean excludeTwitchLib = true;
 
     public UserExtension(UserBasePlugin<? extends UserExtension> plugin) {
         super(plugin);
@@ -83,5 +84,13 @@ public class UserExtension extends BaseExtension {
 
     public void setExcludeScalaLibs(boolean excludeScalaLibs) {
         this.excludeScalaLibs = excludeScalaLibs;
+    }
+
+    public boolean isExcludeTwitchLib() {
+        return excludeTwitchLib;
+    }
+
+    public void setExcludeTwitchLib(boolean excludeTwitchLib) {
+        this.excludeTwitchLib = excludeTwitchLib;
     }
 }

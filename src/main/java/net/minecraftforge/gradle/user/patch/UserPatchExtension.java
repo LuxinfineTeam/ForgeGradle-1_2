@@ -12,7 +12,7 @@ public class UserPatchExtension extends UserExtension {
 
     private String apiVersion;
     private ArrayList<Object> ats = new ArrayList<>();
-    private boolean useAtFromDependencies = true;
+    private boolean useAtFromDependencies = false;
 
     public UserPatchExtension(UserPatchBasePlugin plugin) {
         super(plugin);

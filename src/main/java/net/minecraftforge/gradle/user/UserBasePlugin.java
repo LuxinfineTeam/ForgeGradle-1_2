@@ -408,6 +408,15 @@ public abstract class UserBasePlugin<T extends UserExtension> extends BasePlugin
                         }
                     }
 
+                    //Эти либы давно уже сдохли и смысла с них нет. Майнкрафт имеет интеграцию с твичом,
+                    //но запускает в try-catch, потому без либы не помрёт
+                    if (getExtension().isExcludeTwitchLib()) {
+                        if (artifactName.startsWith("tv.twitch:")) {
+                            log.debug("Excluding twitch library: " + artifactName);
+                            continue;
+                        }
+                    }
+
                     handler.add(depConfig, artifactName);
                 }
             }
