@@ -9,6 +9,7 @@ import net.minecraftforge.gradle.json.JsonFactory;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
@@ -39,7 +40,12 @@ public class GLConstantFixer {
 
     public GLConstantFixer() throws IOException {
         InputStream resource = GLConstantFixer.class.getResourceAsStream("gl.json");
-        if (resource == null) throw new FileNotFoundException("resource gl.json not found.");
+        if (resource == null)  {
+            //Я понятия не имею почему градл не видит этот файл, так что пока без него помучаемся...
+            System.err.println("Resource gl.json not found.");
+            json = new ArrayList<>();
+            return;
+        }
         String text = new String(ByteStreams.toByteArray(resource));
         json = JsonFactory.GSON.fromJson(text, new TypeToken<List<GLConstantGroup>>() {}.getType());
     }
