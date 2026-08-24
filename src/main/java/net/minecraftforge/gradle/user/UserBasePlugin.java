@@ -1025,17 +1025,6 @@ public abstract class UserBasePlugin<T extends UserExtension> extends BasePlugin
         project.allprojects(proj -> {
             addFlatRepo(proj, getApiName() + "FlatRepo", repoDir);
             proj.getLogger().debug("Adding repo to " + proj.getPath() + " >> " + repoDir);
-
-            // Also add dirtyArtifacts directory if deobfBinJar is dirty (e.g., when AT is present)
-            ProcessJarTask binDeobf = (ProcessJarTask) project.getTasks().getByName("deobfBinJar");
-            if (!binDeobf.isClean()) {
-                File dirtyDir = delayedFile(DIRTY_DIR).call();
-                if (dirtyDir.exists() || dirtyDir.mkdirs()) {
-                    addFlatRepo(proj, getApiName() + "DirtyRepo", dirtyDir.getAbsolutePath());
-                    proj.getLogger().debug("Adding dirty repo to " + proj.getPath() + " >> " + dirtyDir.getAbsolutePath());
-                }
-            }
-
             if (wrapperArtifact) {
                 proj.getRepositories().ivy(r -> {
                     r.setName(getApiName() + "WrapperIvyRepo");
