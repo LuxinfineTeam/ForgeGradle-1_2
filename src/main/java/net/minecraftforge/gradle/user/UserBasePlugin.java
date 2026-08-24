@@ -1180,7 +1180,10 @@ public abstract class UserBasePlugin<T extends UserExtension> extends BasePlugin
                 project.getConfigurations().getByName(CONFIG_MC).exclude(ImmutableMap.of("module", getBinDepName()));
             }
         } else {
-            project.getDependencies().add(CONFIG_MC, ImmutableMap.of("name", getBinDepName(), "version", version));
+            // Use file dependency on the output of deobfBinJar task to avoid resolution issues
+            // when the artifact doesn't exist yet (e.g., first Gradle refresh with AT files)
+            ProcessJarTask deobfBinJar = (ProcessJarTask) project.getTasks().getByName("deobfBinJar");
+            project.getDependencies().add(CONFIG_MC, project.files(deobfBinJar.getDelayedOutput()));
             if (remove) {
                 project.getConfigurations().getByName(CONFIG_MC).exclude(ImmutableMap.of("module", getSrcDepName()));
             }
