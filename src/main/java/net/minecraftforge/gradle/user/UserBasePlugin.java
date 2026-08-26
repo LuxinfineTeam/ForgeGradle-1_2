@@ -117,14 +117,19 @@ public abstract class UserBasePlugin<T extends UserExtension> extends BasePlugin
         if (wrapperArtifact) task.dependsOn("genWrapperArtifact");
         //configureDecompSetup(task);
 
-        project.getGradle().getTaskGraph().whenReady(graph -> {
-            String path = project.getPath();
+        if (isSetupDecompWorkspaceRequested()) {
+            getExtension().setDecomp();
+        }
+    }
 
-            if (graph.hasTask(path + "setupDecompWorkspace")) {
-                getExtension().setDecomp();
-                configurePostDecomp(true, true);
+    private boolean isSetupDecompWorkspaceRequested() {
+        for (String taskName : project.getGradle().getStartParameter().getTaskNames()) {
+            if ("setupDecompWorkspace".equals(taskName) || taskName.endsWith(":setupDecompWorkspace")) {
+                return true;
             }
-        });
+        }
+
+        return false;
     }
 
     private boolean hasAppliedJson = false;
@@ -1044,12 +1049,14 @@ public abstract class UserBasePlugin<T extends UserExtension> extends BasePlugin
 
         // check for decompilation status.. has decompiled or not etc
         final File decompFile = delayedDirtyFile(getSrcDepName(), CLASSIFIER_SOURCES, "jar").call();
-        if (decompFile.exists()) {
+        boolean setupDecompWorkspace = isSetupDecompWorkspaceRequested();
+
+        if (decompFile.exists() || setupDecompWorkspace) {
             getExtension().setDecomp();
         }
 
         // post decompile status thing.
-        configurePostDecomp(getExtension().isDecomp(), false);
+        configurePostDecomp(getExtension().isDecomp(), setupDecompWorkspace);
 
         {
             // stop getting empty dirs
@@ -1169,11 +1176,11 @@ public abstract class UserBasePlugin<T extends UserExtension> extends BasePlugin
                 project.getConfigurations().getByName(CONFIG_MC).exclude(ImmutableMap.of("module", getBinDepName()));
             }
         } else {
-            project.getDependencies().add(CONFIG_MC, ImmutableMap.of("name", getBinDepName(), "version", version));
+            //project.getDependencies().add(CONFIG_MC, ImmutableMap.of("name", getBinDepName(), "version", version));
             // Use file dependency on the output of deobfBinJar task to avoid resolution issues
             // when the artifact doesn't exist yet (e.g., first Gradle refresh with AT files)
-            //ProcessJarTask deobfBinJar = (ProcessJarTask) project.getTasks().getByName("deobfBinJar");
-            //project.getDependencies().add(CONFIG_MC, project.files(deobfBinJar.getDelayedOutput()));
+            ProcessJarTask deobfBinJar = (ProcessJarTask) project.getTasks().getByName("deobfBinJar");
+            project.getDependencies().add(CONFIG_MC, project.files(deobfBinJar.getDelayedOutput()));
             if (remove) {
                 project.getConfigurations().getByName(CONFIG_MC).exclude(ImmutableMap.of("module", getSrcDepName()));
             }
