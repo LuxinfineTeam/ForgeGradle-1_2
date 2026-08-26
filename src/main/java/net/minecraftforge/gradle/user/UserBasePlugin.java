@@ -693,7 +693,7 @@ public abstract class UserBasePlugin<T extends UserExtension> extends BasePlugin
             task.setExceptorCfg(delayedFile(EXC_SRG));
             task.setSrg(delayedFile(REOBF_SRG));
             task.setFieldCsv(delayedFile(FIELD_CSV));
-            task.setFieldCsv(delayedFile(METHOD_CSV));
+            task.setMethodCsv(delayedFile(METHOD_CSV));
             task.setMcVersion(delayedString("{MC_VERSION}"));
 
             task.mustRunAfter("test");
