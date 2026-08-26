@@ -794,8 +794,8 @@ public abstract class UserBasePlugin<T extends UserExtension> extends BasePlugin
         JavaCompile recompTask = makeTask("recompMinecraft", JavaCompile.class);
         {
             recompTask.setSource(recompSrc);
-            recompTask.setSourceCompatibility("1.6");
-            recompTask.setTargetCompatibility("1.6");
+            recompTask.setSourceCompatibility("1.8");
+            recompTask.setTargetCompatibility("1.8");
             recompTask.setClasspath(project.getConfigurations().getByName(CONFIG_DEPS));
             recompTask.dependsOn(extract);
             recompTask.getOptions().setWarnings(false);
