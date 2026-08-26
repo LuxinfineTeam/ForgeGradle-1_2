@@ -95,7 +95,7 @@ public class ProcessSrcJarTask extends EditJarTask {
                         if (!hunk.getStatus().isSuccess()) {
                             failed++;
                             getLogger().error("  " + hunk.getHunkID() + ": " + (hunk.getFailure() != null ? hunk.getFailure().getMessage() : "") + " @ " + hunk.getIndex());
-                            Files.write(reject.toPath(), String.format("++++ REJECTED PATCH %d\n", hunk.getHunkID()).getBytes(StandardCharsets.UTF_8), StandardOpenOption.APPEND);
+                            Files.write(reject.toPath(), String.format("++++ REJECTED PATCH %d\n", hunk.getHunkID()).getBytes(StandardCharsets.UTF_8), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
                             Files.write(reject.toPath(), hunk.hunk.lines, StandardCharsets.UTF_8, StandardOpenOption.APPEND);
                             Files.write(reject.toPath(), "\n++++ END PATCH\n".getBytes(StandardCharsets.UTF_8), StandardOpenOption.APPEND);
                         } else if (hunk.getStatus() == PatchStatus.Fuzzed) {
