@@ -1,0 +1,265 @@
+plugins {
+    id 'java'
+    id 'idea'
+    id 'java-gradle-plugin'
+    id 'maven-publish'
+}
+
+group = "com.anatawa12.forge"
+version = "1.2-1.1.2-SNAPSHOT"
+
+base {
+    archivesName = "ForgeGradle"
+}
+
+java {
+    targetCompatibility = JavaVersion.VERSION_1_8
+    sourceCompatibility = JavaVersion.VERSION_1_8
+}
+
+def gradleStartDev = false
+
+// Создаём source set для GradleStart шаблонов
+sourceSets {
+    templates {
+        java {
+            srcDir 'src/templates/java'
+        }
+    }
+}
+
+// Настройка IDEA для корректного отображения
+idea {
+    module {
+        sourceDirs += file('src/templates/java')
+    }
+}
+
+// Синхронизируем изменения из src/templates/java в src/main/resources
+tasks.register('syncTemplatesToResources', Sync) {
+    from 'src/templates/java'
+    into 'src/main/resources'
+    include '**/*.java'
+}
+
+// Настраиваем задачи для templates source set
+tasks.named('compileTemplatesJava', JavaCompile) {
+    // Компилируем только для IDE, не включаем в основной jar
+    destinationDirectory = layout.buildDirectory.dir('templates-classes')
+}
+
+// Автоматически синхронизируем перед processResources
+tasks.named('processResources') {
+    dependsOn tasks.named('syncTemplatesToResources')
+}
+
+// Также добавляем зависимость для sourcesJar
+tasks.whenTaskAdded { task ->
+    if (task.name == 'sourcesJar') {
+        task.dependsOn tasks.named('syncTemplatesToResources')
+    }
+}
+
+repositories {
+    mavenCentral()
+
+    maven {
+        name = 'forge'
+        url = 'https://maven.minecraftforge.net'
+    }
+
+    maven {
+        name = 'mojang'
+        url = 'https://libraries.minecraft.net/'
+    }
+}
+
+tasks.named('jar', Jar) {
+    // Исключаем GradleStart классы из jar
+    // (они должны быть только в resources)
+    exclude 'GradleStart*.class'
+    exclude 'net/minecraftforge/gradle/GradleStartCommon*.class'
+    exclude 'net/minecraftforge/gradle/OldPropertyMapSerializer*.class'
+    exclude 'net/minecraftforge/gradle/tweakers/**/*.class'
+
+    // Стратегия для дубликатов
+    duplicatesStrategy = DuplicatesStrategy.INCLUDE
+
+    manifest {
+        attributes(
+                'version': project.version,
+                'javaCompliance': project.java.targetCompatibility,
+                'group': project.group,
+                'Implementation-Version': project.version
+        )
+    }
+}
+
+dependencies {
+    implementation gradleApi()
+
+    // moved to the beginning to be the overrider
+    implementation 'org.ow2.asm:asm:9.10.1'
+    implementation 'org.ow2.asm:asm-tree:9.10.1'
+    implementation 'com.google.guava:guava:33.6.0-jre'
+
+    implementation 'com.opencsv:opencsv:5.12.0'
+    implementation 'com.cloudbees:diff4j:1.3'
+    implementation 'com.github.abrarsyed.jastyle:jAstyle:1.3'
+
+    implementation 'com.github.jponge:lzma-java:1.3'
+    implementation 'com.nothome:javaxdelta:2.0.1'
+    implementation 'com.google.code.gson:gson:2.14.0'
+    implementation 'org.glavo:pack200:0.3.0'
+
+    implementation 'net.md-5:SpecialSource:1.11.6'
+
+    // mcp stuff
+    implementation 'de.oceanlabs.mcp:RetroGuard:3.6.6'
+    implementation 'de.oceanlabs.mcp:mcinjector:3.2-SNAPSHOT'
+    implementation 'net.minecraftforge:Srg2Source:4.2.7'
+
+    // pin jdt deps
+    // locked means locked due to java 8
+    implementation 'org.eclipse.jdt:org.eclipse.jdt.core:3.26.0'
+    implementation 'org.eclipse.platform:org.eclipse.core.commands:3.9.800'
+    implementation 'org.eclipse.platform:org.eclipse.core.contenttype:3.7.1000'
+    implementation 'org.eclipse.platform:org.eclipse.core.expressions:3.7.100'
+    implementation 'org.eclipse.platform:org.eclipse.core.filesystem:1.7.700'
+    implementation 'org.eclipse.platform:org.eclipse.core.jobs:3.11.0'
+    implementation 'org.eclipse.platform:org.eclipse.core.resources:3.14.0'
+    implementation 'org.eclipse.platform:org.eclipse.core.runtime:3.22.0'
+    implementation 'org.eclipse.platform:org.eclipse.equinox.app:1.5.100'
+    implementation 'org.eclipse.platform:org.eclipse.equinox.common:3.14.100'
+    implementation 'org.eclipse.platform:org.eclipse.equinox.preferences:3.9.100'
+    implementation 'org.eclipse.platform:org.eclipse.equinox.registry:3.10.200'
+    implementation 'org.eclipse.platform:org.eclipse.osgi:3.18.400'
+    implementation 'org.eclipse.platform:org.eclipse.text:3.11.0'
+    implementation 'org.osgi:org.osgi.service.prefs:1.1.2'
+    implementation 'org.osgi:osgi.annotation:8.1.0'
+
+    // Stuff used in the GradleStart classes
+    if (gradleStartDev) {
+        compileOnly 'com.mojang:authlib:1.5.16'
+        compileOnly 'net.minecraft:launchwrapper:1.11'
+    }
+
+    // Зависимости для templates source set
+    // (только для IDE индексации)
+    templatesCompileOnly 'com.mojang:authlib:1.5.16'
+    templatesCompileOnly 'net.minecraft:launchwrapper:1.11'
+    templatesCompileOnly 'com.google.guava:guava:33.6.0-jre'
+    templatesCompileOnly 'com.google.code.gson:gson:2.14.0'
+    templatesCompileOnly 'org.apache.logging.log4j:log4j-api:2.17.1'
+    templatesCompileOnly 'org.apache.logging.log4j:log4j-core:2.17.1'
+    templatesCompileOnly 'net.sf.jopt-simple:jopt-simple:4.6'
+}
+
+tasks.named('compileJava', JavaCompile) {
+    options.deprecation = true
+    // options.compilerArgs += ['-Werror', '-Xlint:unchecked']
+}
+
+tasks.named('javadoc', Javadoc) {
+    // linked javadoc urls.. why not...
+
+    classpath = classpath.filter {
+        !(it.name == 'main' && it.parentFile.name == 'resources')
+    }
+
+    options.links(
+            'https://gradle.org/docs/current/javadoc/',
+            'https://guava.dev/releases/18.0/api/docs/',
+            'https://asm.ow2.io/javadoc/'
+    )
+}
+
+java {
+    withJavadocJar()
+    withSourcesJar()
+}
+
+artifacts {
+    archives tasks.named('jar')
+}
+
+publishing {
+    publications {
+        bintray(MavenPublication) {
+            from components.java
+
+            artifactId = base.archivesName.get()
+
+            pom {
+                name = project.base.archivesName.get()
+                description = 'Gradle plugin for Forge'
+                url = 'https://github.com/anatawa12/ForgeGradle-1.2'
+
+                scm {
+                    url = 'https://github.com/anatawa12/ForgeGradle-1.2'
+                    connection = 'scm:git:git://github.com/anatawa12/ForgeGradle-1.2.git'
+                    developerConnection = 'scm:git:git@github.com:anatawa12/ForgeGradle-1.2.git'
+                }
+
+                issueManagement {
+                    system = 'github'
+                    url = 'https://github.com/anatawa12/ForgeGradle-1.2/issues'
+                }
+
+                licenses {
+                    license {
+                        name = 'Lesser GNU Public License, Version 2.1'
+                        url = 'https://www.gnu.org/licenses/lgpl-2.1.html'
+                        distribution = 'repo'
+                    }
+                }
+
+                developers {
+                    developer {
+                        id = 'AbrarSyed'
+                        name = 'Abrar Syed'
+                        roles = ['developer']
+                    }
+
+                    developer {
+                        id = 'LexManos'
+                        name = 'Lex Manos'
+                        roles = ['developer']
+                    }
+
+                    developer {
+                        id = 'anatawa12'
+                        name = 'anatawa12'
+                        roles = ['developer']
+                    }
+
+                    developer {
+                        id = 'LuxinfineTeam'
+                        name = 'LuxinfineTeam'
+                        roles = ['developer']
+                    }
+                }
+            }
+        }
+    }
+}
+
+gradlePlugin {
+    automatedPublishing = false
+
+    plugins {
+        fml {
+            id = 'fml'
+            implementationClass = 'net.minecraftforge.gradle.user.patch.FmlUserPlugin'
+        }
+
+        forge {
+            id = 'forge'
+            implementationClass = 'net.minecraftforge.gradle.user.patch.ForgeUserPlugin'
+        }
+    }
+}
+
+// write out version so its convenient for doc deployment
+file('build').mkdirs()
+file('build/version.txt').text = "$version"
