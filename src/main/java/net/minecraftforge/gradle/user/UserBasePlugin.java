@@ -57,35 +57,11 @@ import static net.minecraftforge.gradle.common.Constants.*;
 import static net.minecraftforge.gradle.user.UserConstants.*;
 
 public abstract class UserBasePlugin<T extends UserExtension> extends BasePlugin<T> {
-    boolean mavenPluginEnabled = false;
-    boolean wrapperArtifact = false;
 
     @Override
     public void applyPlugin() {
         this.applyExternalPlugin("java");
-        mavenPluginEnabled = !ProjectUtils.getBooleanProperty(project, "com.anatawa12.forge.gradle.no-maven-plugin")
-                && GradleVersionUtils.isBefore("7.0");
-        wrapperArtifact = ProjectUtils.getBooleanProperty(project, "com.anatawa12.forge.gradle.wrapper-artifact");
-        if (mavenPluginEnabled) {
-            GradleVersionUtils.ifAfter("6.0", () -> {
-                if (project.getGradle().getStartParameter().getWarningMode() == WarningMode.All) {
-                    project.getLogger().warn("The maven plugin is automatically applied by ForgeGradle and " +
-                            "will not be applied since Gradle 7.0. " +
-                            "If you're using maven plugin applied by ForgeGradle, " +
-                            "please use 'maven-publish' instead and apply it yourself.");
-                    project.getLogger().warn("To disable applying maven plugin by ForgeGradle, please set " +
-                            "'com.anatawa12.forge.gradle.no-maven-plugin' project property as 'true' in " +
-                            "gradle.properties.");
-                }
-            });
-            applyExternalPlugin("maven");
-        }
         this.applyExternalPlugin("idea");
-
-        hasScalaBefore = project.getPlugins().hasPlugin("scala");
-        hasGroovyBefore = project.getPlugins().hasPlugin("groovy");
-
-        addGitIgnore(); //Morons -.-
 
         configureDeps();
         configureCompilation();
@@ -100,21 +76,18 @@ public abstract class UserBasePlugin<T extends UserExtension> extends BasePlugin
         task.dependsOn("genSrgs", "deobfBinJar");
         task.setDescription("Sets up the bare minimum to build a minecraft mod. Ideal for CI servers");
         task.setGroup("ForgeGradle");
-        if (wrapperArtifact) task.dependsOn("genWrapperArtifact");
         //configureCISetup(task);
 
         task = makeTask("setupDevWorkspace", DefaultTask.class);
         task.dependsOn("genSrgs", "deobfBinJar", "makeStart");
         task.setDescription("CIWorkspace + natives and assets to run and test Minecraft");
         task.setGroup("ForgeGradle");
-        if (wrapperArtifact) task.dependsOn("genWrapperArtifact");
         //configureDevSetup(task);
 
         task = makeTask("setupDecompWorkspace", DefaultTask.class);
         task.dependsOn("genSrgs", "makeStart", "repackMinecraft");
         task.setDescription("DevWorkspace + the deobfuscated Minecraft source linked as a source jar.");
         task.setGroup("ForgeGradle");
-        if (wrapperArtifact) task.dependsOn("genWrapperArtifact");
         //configureDecompSetup(task);
 
         if (isSetupDecompWorkspaceRequested()) {
@@ -133,9 +106,6 @@ public abstract class UserBasePlugin<T extends UserExtension> extends BasePlugin
     }
 
     private boolean hasAppliedJson = false;
-    private boolean hasScalaBefore = false;
-    private boolean hasGroovyBefore = false;
-
     /**
      * may not include delayed tokens.
      *
@@ -340,8 +310,6 @@ public abstract class UserBasePlugin<T extends UserExtension> extends BasePlugin
         project.getDependencies().add(CONFIG_COMPILE, project.fileTree("libs"));
 
         // make MC dependencies into normal compile classpath
-        if (!wrapperArtifact)
-            project.getConfigurations().getByName(CONFIG_COMPILE).extendsFrom(project.getConfigurations().getByName(CONFIG_DEPS));
         project.getConfigurations().getByName(CONFIG_COMPILE).extendsFrom(project.getConfigurations().getByName(CONFIG_MC));
         project.getConfigurations().getByName(CONFIG_RUNTIME).extendsFrom(project.getConfigurations().getByName(CONFIG_START));
     }
@@ -631,18 +599,6 @@ public abstract class UserBasePlugin<T extends UserExtension> extends BasePlugin
             task.dependsOn("extractUserDev", "extractMcpData");
         }
 
-        if (wrapperArtifact) {
-            GenWrapperArtifactTask task = makeTask("genWrapperArtifact", GenWrapperArtifactTask.class);
-            task.setIvyXml(delayedDirtyFile("wrapper-of-{API_NAME}", "ivy", "xml"));
-            task.setEmptyJar(delayedDirtyFile("wrapper-of-{API_NAME}", "ivy", "jar"));
-            task.setModuleName(delayedString("{API_NAME}"));
-            task.setIsDecomp(() -> getExtension().isDecomp());
-            task.setSrcDepName(getSrcDepName());
-            task.setBinDepName(getBinDepName());
-            task.setVersion(delayedString(hasApiVersion() ? "{API_VERSION}" : "{MC_VERSION}"));
-            task.setConfiguration(project.getConfigurations().getByName(CONFIG_DEPS));
-        }
-
         {
             MergeJarsTask task = makeTask("mergeJars", MergeJarsTask.class);
             task.setClient(delayedFile(JAR_CLIENT_FRESH));
@@ -669,7 +625,6 @@ public abstract class UserBasePlugin<T extends UserExtension> extends BasePlugin
             task.setStripSynthetics(true);
             configureDeobfuscation(task);
             task.dependsOn("downloadMcpTools", "mergeJars", "genSrgs");
-            if (wrapperArtifact) task.dependsOn("genWrapperArtifact");
         }
 
         {
@@ -699,8 +654,6 @@ public abstract class UserBasePlugin<T extends UserExtension> extends BasePlugin
             task.mustRunAfter("test");
             task.mustRunAfter("repackMinecraft");
             project.getTasks().getByName("assemble").dependsOn(task);
-            if (mavenPluginEnabled)
-                project.getTasks().getByName("uploadArchives").dependsOn(task);
         }
 
         {
@@ -913,70 +866,6 @@ public abstract class UserBasePlugin<T extends UserExtension> extends BasePlugin
             compile.dependsOn("sourceMainJava");
             compile.setSource(dir);
         }
-
-        // scala!!!
-        if (project.getPlugins().hasPlugin("scala")) {
-            SourceDirectorySet set;
-            DslObject dslObject = new DslObject(main);
-            if (GradleVersionUtils.isBefore("9.0")) {
-                if (GradleVersionUtils.isBefore("7.1")) {
-                    //Легаси gradle
-                    try {
-                        Object convention = dslObject.getClass().getMethod("getConvention").invoke(dslObject);
-                        Object plugins = convention.getClass().getMethod("getPlugins").invoke(convention);
-                        Object scalaSourceSet = ((java.util.Map<?, ?>) plugins).get("scala");
-                        set = (SourceDirectorySet) scalaSourceSet.getClass().getMethod("getScala").invoke(scalaSourceSet);
-                    } catch (Exception e) {
-                        throw new RuntimeException("Failed to get Scala source set", e);
-                    }
-                } else {
-                    set = dslObject.getExtensions().getByType(ScalaSourceDirectorySet.class);
-                }
-            } else {
-                set = dslObject.getExtensions().getByType(ScalaSourceDirectorySet.class);
-            }
-            DelayedFile dir = delayedFile(SOURCES_DIR + "/scala");
-
-            task = makeTask("sourceMainScala", SourceCopyTask.class);
-            task.setSource(set);
-            task.setOutput(dir);
-
-            ScalaCompile compile = (ScalaCompile) project.getTasks().getByName(main.getCompileTaskName("scala"));
-            compile.dependsOn("sourceMainScala");
-            compile.setSource(dir);
-        }
-
-        // groovy!!! (А кто вообще на нем моды пишет?)
-        if (project.getPlugins().hasPlugin("groovy")) {
-            SourceDirectorySet set;
-            DslObject dslObject = new DslObject(main);
-            if (GradleVersionUtils.isBefore("9.0")) {
-                if (GradleVersionUtils.isBefore("7.1")) {
-                    //Легаси gradle
-                    try {
-                        Object convention = dslObject.getClass().getMethod("getConvention").invoke(dslObject);
-                        Object plugins = convention.getClass().getMethod("getPlugins").invoke(convention);
-                        Object groovySourceSet = ((java.util.Map<?, ?>) plugins).get("groovy");
-                        set = (SourceDirectorySet) groovySourceSet.getClass().getMethod("getGroovy").invoke(groovySourceSet);
-                    } catch (Exception e) {
-                        throw new RuntimeException("Failed to get Groovy source set", e);
-                    }
-                } else {
-                    set = dslObject.getExtensions().getByType(GroovySourceDirectorySet.class);
-                }
-            } else {
-                set = dslObject.getExtensions().getByType(GroovySourceDirectorySet.class);
-            }
-            DelayedFile dir = delayedFile(SOURCES_DIR + "/groovy");
-
-            task = makeTask("sourceMainGroovy", SourceCopyTask.class);
-            task.setSource(set);
-            task.setOutput(dir);
-
-            GroovyCompile compile = (GroovyCompile) project.getTasks().getByName(main.getCompileTaskName("groovy"));
-            compile.dependsOn("sourceMainGroovy");
-            compile.setSource(dir);
-        }
     }
 
     @Override
@@ -1004,17 +893,7 @@ public abstract class UserBasePlugin<T extends UserExtension> extends BasePlugin
             if (task != null) task.mustRunAfter("repackMinecraft");
             task = project.getTasks().findByName("compileKotlin");
             if (task != null) task.mustRunAfter("repackMinecraft");
-            task = project.getTasks().findByName("compileGroovy");
-            if (task != null) task.mustRunAfter("repackMinecraft");
-            task = project.getTasks().findByName("compileScala");
-            if (task != null) task.mustRunAfter("repackMinecraft");
         }
-
-        // ensure plugin application sequence.. groovy or scala or wtvr first, then the forge/fml/liteloader plugins
-        if (!hasScalaBefore && project.getPlugins().hasPlugin("scala"))
-            throw new RuntimeException(delayedString("You have applied the 'scala' plugin after '{API_NAME}', you must apply it before.").call());
-        if (!hasGroovyBefore && project.getPlugins().hasPlugin("groovy"))
-            throw new RuntimeException(delayedString("You have applied the 'groovy' plugin after '{API_NAME}', you must apply it before.").call());
 
         project.getDependencies().add(CONFIG_USERDEV, delayedString(getUserDev()).call() + ":userdev");
 
@@ -1030,21 +909,6 @@ public abstract class UserBasePlugin<T extends UserExtension> extends BasePlugin
         project.allprojects(proj -> {
             addFlatRepo(proj, getApiName() + "FlatRepo", repoDir);
             proj.getLogger().debug("Adding repo to " + proj.getPath() + " >> " + repoDir);
-            if (wrapperArtifact) {
-                proj.getRepositories().ivy(r -> {
-                    r.setName(getApiName() + "WrapperIvyRepo");
-                    try {
-                        r.setUrl(new File(repoDir).toURI().toURL());
-                    } catch (MalformedURLException e) {
-                        throw new RuntimeException(e);
-                    }
-                    GradleVersionUtils.ifAfter("5.1", () -> r.content(cd -> cd.includeGroup(WRAPPER_ARTIFACT_GROUP_ID)));
-                    r.patternLayout(l -> {
-                        l.ivy("wrapper-of-[module]-[revision]-ivy.xml");
-                        l.artifact("wrapper-of-[module]-[revision]-ivy.[ext]");
-                    });
-                });
-            }
         });
 
         // check for decompilation status.. has decompiled or not etc
@@ -1168,9 +1032,7 @@ public abstract class UserBasePlugin<T extends UserExtension> extends BasePlugin
         if (hasApiVersion())
             version = getApiVersion(getExtension());
 
-        if (wrapperArtifact) {
-            project.getDependencies().add(CONFIG_COMPILE, ImmutableMap.of("group", WRAPPER_ARTIFACT_GROUP_ID, "name", getApiName(), "version", version));
-        } else if (decomp) {
+        if (decomp) {
             project.getDependencies().add(CONFIG_MC, ImmutableMap.of("name", getSrcDepName(), "version", version));
             if (remove) {
                 project.getConfigurations().getByName(CONFIG_MC).exclude(ImmutableMap.of("module", getBinDepName()));
@@ -1249,15 +1111,5 @@ public abstract class UserBasePlugin<T extends UserExtension> extends BasePlugin
     @SuppressWarnings("unchecked")
     protected Class<T> getExtensionClass() {
         return (Class<T>) UserExtension.class;
-    }
-
-    private void addGitIgnore() {
-        File git = new File(ProjectBuildDirHelper.getBuildDir(project), ".gitignore");
-        if (!git.exists()) {
-            git.getParentFile().mkdir();
-            try {
-                Files.write(git.toPath(), "#Seriously guys, stop commiting this to your git repo!\r\n*".getBytes());
-            } catch (IOException e) {}
-        }
     }
 }
