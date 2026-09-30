@@ -74,18 +74,6 @@ public abstract class BasePlugin<K extends BaseExtension> implements Plugin<Proj
             }
         }
 
-        // logging
-        if (ProjectUtils.getBooleanProperty(project, "com.anatawa12.forge.gradle.log-in-cache-folder")) {
-            File projectCacheDir = project.getGradle().getStartParameter().getProjectCacheDir();
-            if (projectCacheDir == null)
-                projectCacheDir = new File(project.getProjectDir(), ".gradle");
-
-            FileLogListenner listener = new FileLogListenner(projectCacheDir.toPath().resolve("gradle.log"));
-            project.getLogging().addStandardOutputListener(listener);
-            project.getLogging().addStandardErrorListener(listener);
-            project.getGradle().addBuildListener(listener);
-        }
-
         if (ProjectBuildDirHelper.getBuildDir(project).getAbsolutePath().contains("!")) {
             project.getLogger().error("Build path has !, This will screw over a lot of java things as ! is used to denote archive paths, REMOVE IT if you want to continue");
             throw new RuntimeException("Build path contains !");
