@@ -55,7 +55,6 @@ public abstract class BasePlugin<K extends BaseExtension> implements Plugin<Proj
     @SuppressWarnings("rawtypes")
     @Override
     public final void apply(Project arg) {
-        GradleVersionUtils.checkSupportedVersion();
         project = arg;
 
         // search for overlays..
@@ -168,8 +167,6 @@ public abstract class BasePlugin<K extends BaseExtension> implements Plugin<Proj
 
     protected abstract DelayedFile getDevJson();
 
-    private static boolean displayBanner = true;
-
     private void setVersionInfoJson() {
         File jsonCache = Constants.cacheFile(project, "caches", "minecraft", "McpMappings.json");
         File etagFile = new File(jsonCache.getAbsolutePath() + ".etag");
@@ -188,76 +185,6 @@ public abstract class BasePlugin<K extends BaseExtension> implements Plugin<Proj
                     "ext", "zip"
             ));
         }
-
-        if (!displayBanner)
-            return;
-        Logger logger = this.project.getLogger();
-        logger.lifecycle("#################################################");
-        logger.lifecycle("         ForgeGradle {}        ", this.getVersionString());
-        logger.lifecycle("   https://github.com/anatawa12/ForgeGradle-1.2  ");
-        logger.lifecycle("#################################################");
-        logger.lifecycle("               Powered by MCP {}               ", this.delayedString("{MCP_VERSION}"));
-        //noinspection HttpUrlsUsage
-        logger.lifecycle("             http://modcoderpack.com             ");
-        logger.lifecycle("         by: Searge, ProfMobius, Fesh0r,         ");
-        logger.lifecycle("         R4wk, ZeuX, IngisKahn, bspkrs           ");
-        logger.lifecycle("#################################################");
-        if (!hasMavenCentralBeforeJCenterInBuildScriptRepositories()) {
-            logger.lifecycle("");
-            logger.warn("The jcenter maven repository is going to be closed.");
-            logger.warn("The fork of ForgeGradle by anatawa12 will use the maven central repository.");
-            logger.warn("In the near future, this ForgeGradle will not be published onto the jcenter.");
-            logger.warn("Please add the maven central repository to the repositories for");
-            logger.warn("buildscript before or as a replacement of jcenter.");
-        }
-        if (!hasMavenMinecraftForgeBeforeFilesMinecraftForge(project.getBuildscript().getRepositories())
-                || !hasMavenMinecraftForgeBeforeFilesMinecraftForge(project.getRepositories())) {
-            logger.lifecycle("");
-            logger.warn("The minecraft forge's official maven repository has been moved to");
-            logger.warn("https://maven.minecraftforge.net/. Currently redirection from previous location");
-            logger.warn("previous location to new location is alive but we don't know");
-            logger.warn("when it will stop so I especially recommend to change repository url.");
-        }
-        displayBanner = false;
-    }
-
-    private boolean hasMavenCentralBeforeJCenterInBuildScriptRepositories() {
-        if (ProjectUtils.getBooleanProperty(project, "com.anatawa12.forge.gradle.no-maven-central-warn"))
-            return true;
-        URI mavenCentralUrl;
-        try {
-            mavenCentralUrl = project.uri(ArtifactRepositoryContainer.class
-                    .getField("MAVEN_CENTRAL_URL").get(null));
-        } catch (IllegalAccessException | NoSuchFieldException e) {
-            throw new RuntimeException(e);
-        }
-        for (ArtifactRepository repository : project.getBuildscript().getRepositories()) {
-            if (repository instanceof MavenArtifactRepository) {
-                MavenArtifactRepository mvnRepo = (MavenArtifactRepository) repository;
-                // requires before the jcenter
-                if (mvnRepo.getUrl().toString().equals("https://jcenter.bintray.com/"))
-                    return false;
-                if (mvnRepo.getUrl().equals(mavenCentralUrl))
-                    return true;
-            }
-        }
-        return false;
-    }
-
-    private boolean hasMavenMinecraftForgeBeforeFilesMinecraftForge(RepositoryHandler repositories) {
-        if (ProjectUtils.getBooleanProperty(project, "com.anatawa12.forge.gradle.no-forge-maven-warn"))
-            return true;
-        for (ArtifactRepository repository : repositories) {
-            if (repository instanceof MavenArtifactRepository) {
-                MavenArtifactRepository mvnRepo = (MavenArtifactRepository) repository;
-                // requires before the jcenter
-                if (mvnRepo.getUrl().toString().contains("//files.minecraftforge.net/maven"))
-                    return false;
-                if (mvnRepo.getUrl().toString().contains("//maven.minecraftforge.net"))
-                    return true;
-            }
-        }
-        return false;
     }
 
     private String getVersionString() {
