@@ -14,7 +14,7 @@ public class BaseExtension {
     protected String version = "null";
     protected String mcpVersion = "unknown";
     protected String runDir = "run";
-    private final LinkedList<String> srgExtra = new LinkedList<>();
+    private LinkedList<String> srgExtra = new LinkedList<>();
     protected Map<String, Map<String, int[]>> mcpJson;
     protected boolean mappingsSet = false;
     protected String mappingsChannel = null;
