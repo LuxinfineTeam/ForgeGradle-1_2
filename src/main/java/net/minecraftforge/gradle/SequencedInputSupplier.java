@@ -9,6 +9,10 @@ import java.util.List;
 
 @SuppressWarnings("serial")
 public class SequencedInputSupplier extends LinkedList<InputSupplier> implements InputSupplier {
+    public SequencedInputSupplier(InputSupplier supp) {
+        super();
+        this.add(supp);
+    }
 
     public SequencedInputSupplier() {
         super();
