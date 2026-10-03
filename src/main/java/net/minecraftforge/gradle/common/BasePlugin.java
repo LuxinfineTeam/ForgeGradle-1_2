@@ -110,21 +110,11 @@ public abstract class BasePlugin<K extends BaseExtension> implements Plugin<Proj
         // Separated module
         {
             project.getConfigurations().create(SeparatedLauncher.configurationName);
-            String version = getVersionString();
-            if (version.indexOf('-') >= 0) {
-                // remove git sha
-                version = version.substring(0, version.lastIndexOf('-'));
-                project.getDependencies().add(SeparatedLauncher.configurationName,
-                        "com.anatawa12.forge:separated:" + version);
-                // for SNAPSHOTs, add snapshots repository for separated module
-                if (version.contains("SNAPSHOT")) {
-                    MavenArtifactRepository repo = addMavenRepo(project, "ossrh-snapshots-for-forgegradle-separated", 
-                            "https://oss.sonatype.org/content/repositories/snapshots");
-                    // if supported by gradle, limit to separated module
-                    GradleVersionUtils.ifAfter("5.1",
-                            () -> repo.content(desc -> desc.includeModule("com.anatawa12.forge", "separated")));
-                }
-            }
+            project.getDependencies().add(SeparatedLauncher.configurationName, SEPARATED_DEPENDENCY);
+            MavenArtifactRepository repo = addMavenRepo(project, "jitpack-for-forgegradle-separated", JITPACK_MAVEN);
+            // if supported by gradle, limit to separated module
+            GradleVersionUtils.ifAfter("5.1",
+                    () -> repo.content(desc -> desc.includeModule(SEPARATED_GROUP, SEPARATED_NAME)));
         }
 
         // after eval
@@ -268,6 +258,12 @@ public abstract class BasePlugin<K extends BaseExtension> implements Plugin<Proj
 
         return version;
     }
+
+    private static final String JITPACK_MAVEN = "https://jitpack.io";
+    private static final String SEPARATED_GROUP = "com.github.LuxinfineTeam.ForgeGradle-1_2";
+    private static final String SEPARATED_NAME = "separated";
+    /** this fork is published to jitpack, ForgeGradle and separated being two modules of it */
+    private static final String SEPARATED_DEPENDENCY = SEPARATED_GROUP + ":" + SEPARATED_NAME + ":main-SNAPSHOT";
 
     public void finalCall() {
     }
