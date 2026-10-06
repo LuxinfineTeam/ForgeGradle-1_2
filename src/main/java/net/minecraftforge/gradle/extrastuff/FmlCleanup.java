@@ -8,6 +8,12 @@ import java.util.*;
 import java.util.Map.Entry;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import javax.tools.Diagnostic;
+import javax.tools.DiagnosticCollector;
+import javax.tools.JavaFileObject;
+import javax.tools.SimpleJavaFileObject;
+import javax.tools.ToolProvider;
+import com.sun.source.util.JavacTask;
 
 public class FmlCleanup {
     //private static final Pattern METHOD_REG = Pattern.compile("^ {4}(\\w+\\s+\\S.*\\(.*|static)$");
@@ -29,10 +35,13 @@ public class FmlCleanup {
         for (String line : lines) {
             Matcher matcher = METHOD_REG.matcher(line);
             boolean found = matcher.find();
+
             if (!line.endsWith(";") && !line.endsWith(",") && found)// && !line.contains("=") && !NESTED_PERINTH.matcher(line).find())
             {
+                if (method != null) method.trackLineWithParents(line);
                 method = new MethodInfo(method, matcher.group("indent"));
                 method.lines.add(line);
+                method.trackLine(line);
 
                 boolean invalid = false; // Can't think of a better way to filter out enum declarations, so make sure that all the parameters have types
                 String args = matcher.group("parameters");
@@ -58,16 +67,16 @@ public class FmlCleanup {
                     if (method == null) // dont output if there is a parent method.
                         output.add(line);
                 }
-            } else if (method != null && method.ENDING.equals(line)) {
-                method.lines.add(line);
-
-                if (method.parent == null) {
-                    output.addAll(Arrays.asList(method.rename(null).split(Constants.NEWLINE)));
-                }
-
-                method = method.parent;
             } else if (method != null) {
+                method.trackLineWithParents(line);
                 method.lines.add(line);
+                if (method.bodyStarted && method.braceDepth == 0) {
+                    if (method.parent == null) {
+                        output.addAll(Arrays.asList(method.rename(null).split(Constants.NEWLINE)));
+                    }
+                    method = method.parent;
+                    continue;
+                }
                 matcher = CATCH_REG.matcher(line);
                 if (matcher.find()) {
                     method.addVar(matcher.group(1));
@@ -86,7 +95,35 @@ public class FmlCleanup {
             }
         }
 
-        return String.join(Constants.NEWLINE, output);
+        String renamed = String.join(Constants.NEWLINE, output);
+        return parsesAsJava8(renamed) ? renamed : text;
+    }
+
+    private static boolean parsesAsJava8(String source) {
+        javax.tools.JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
+        if (compiler == null)
+            return false;
+        DiagnosticCollector<JavaFileObject> diagnostics = new DiagnosticCollector<>();
+        JavaFileObject unit = new SimpleJavaFileObject(java.net.URI.create("string:///Generated.java"), JavaFileObject.Kind.SOURCE) {
+            @Override
+            public CharSequence getCharContent(boolean ignoreEncodingErrors) {
+                return source;
+            }
+        };
+
+        // Процесс запущен под Java21+, т.к. gradle9 не совместим с jdk8, потому явно указываем java8 таргет
+        JavacTask task = (JavacTask) compiler.getTask(null, null, diagnostics,
+                Arrays.asList("-proc:none", "--release", "8"), null, Collections.singletonList(unit));
+        try {
+            task.parse();
+        } catch (Exception e) {
+            return false;
+        }
+        for (Diagnostic<?> diagnostic : diagnostics.getDiagnostics()) {
+            if (diagnostic.getKind() == Diagnostic.Kind.ERROR)
+                return false;
+        }
+        return true;
     }
 
     private static class MethodInfo {
@@ -94,11 +131,11 @@ public class FmlCleanup {
         private List<Object> lines = new ArrayList<>();
         private List<String> vars = new ArrayList<>();
         private List<MethodInfo> children = new ArrayList<>();
-        private final String ENDING;
+        private int braceDepth;
+        private boolean bodyStarted;
 
         private MethodInfo(MethodInfo parent, String indent) {
             this.parent = parent;
-            ENDING = indent + "}";
             if (parent != null) {
                 parent.children.add(this);
                 parent.lines.add(this);
@@ -107,6 +144,44 @@ public class FmlCleanup {
 
         private void addVar(String info) {
             vars.add(info);
+        }
+
+        private void trackLine(String line) {
+            boolean inString = false;
+            boolean inChar = false;
+            boolean escaped = false;
+            for (int i = 0; i < line.length(); i++) {
+                char c = line.charAt(i);
+                if (escaped) {
+                    escaped = false;
+                    continue;
+                }
+                if ((inString || inChar) && c == '\\') {
+                    escaped = true;
+                    continue;
+                }
+                if (!inChar && c == '"') {
+                    inString = !inString;
+                    continue;
+                }
+                if (!inString && c == '\'') {
+                    inChar = !inChar;
+                    continue;
+                }
+                if (inString || inChar) continue;
+                if (c == '{') {
+                    braceDepth++;
+                    bodyStarted = true;
+                } else if (c == '}') {
+                    braceDepth--;
+                }
+            }
+        }
+
+        private void trackLineWithParents(String line) {
+            for (MethodInfo current = this; current != null; current = current.parent) {
+                current.trackLine(line);
+            }
         }
 
         private String rename(FmlCleanup namer) {
@@ -161,6 +236,7 @@ public class FmlCleanup {
 
             return body.substring(0, body.length() - Constants.NEWLINE.length());
         }
+
     }
 
     HashMap<String, Holder> last;

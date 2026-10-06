@@ -230,10 +230,6 @@ public class DecompileTask extends CachedTask {
     }
 
     private void applyMcpCleanup(File conf) throws IOException {
-        ASFormatter formatter = new ASFormatter();
-        OptParser parser = new OptParser(formatter);
-        parser.parseOptionFile(conf);
-
         Reader reader;
         Writer writer;
 
@@ -243,6 +239,12 @@ public class DecompileTask extends CachedTask {
 
         for (String file : files) {
             String text = sourceMap.get(file);
+            // ASFormatter keeps bracket/indentation state while formatting a
+            // source stream. Reusing it for the next Java file leaks that
+            // state across unrelated compilation units and shifts braces.
+            ASFormatter formatter = new ASFormatter();
+            OptParser parser = new OptParser(formatter);
+            parser.parseOptionFile(conf);
 
             getLogger().debug("Processing file: " + file);
 
@@ -257,6 +259,7 @@ public class DecompileTask extends CachedTask {
 
             getLogger().debug("fixing OGL constants");
             text = fixer.fixOGL(text);
+
 
             getLogger().debug("formatting source");
             reader = new StringReader(text);

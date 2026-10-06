@@ -9,6 +9,7 @@ import net.minecraftforge.gradle.json.JsonFactory;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -39,15 +40,13 @@ public class GLConstantFixer {
     private static final String IMPORT_REPLACE = "import " + ADD_AFTER + ";";
 
     public GLConstantFixer() throws IOException {
-        InputStream resource = GLConstantFixer.class.getResourceAsStream("gl.json");
-        if (resource == null)  {
-            //Я понятия не имею почему градл не видит этот файл, так что пока без него помучаемся...
-            System.err.println("Resource gl.json not found.");
-            json = new ArrayList<>();
-            return;
+        try (InputStream resource = GLConstantFixer.class.getResourceAsStream("/gl.json")) {
+            if (resource == null)
+                throw new FileNotFoundException("ForgeGradle resource /gl.json is missing from the plugin classpath");
+
+            String text = new String(ByteStreams.toByteArray(resource), StandardCharsets.UTF_8);
+            json = JsonFactory.GSON.fromJson(text, new TypeToken<List<GLConstantGroup>>() {}.getType());
         }
-        String text = new String(ByteStreams.toByteArray(resource));
-        json = JsonFactory.GSON.fromJson(text, new TypeToken<List<GLConstantGroup>>() {}.getType());
     }
 
     public String fixOGL(String text) {

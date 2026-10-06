@@ -11,6 +11,7 @@ public final class UserConstants {
     public static final String CONFIG_NATIVES = "minecraftNatives";
     public static final String CONFIG_START = "forgeGradleStartClass";
     public static final String CONFIG_DEPS = "minecraftDeps";
+    public static final String CONFIG_DEPS_SETUP = "minecraftSetupDeps";
     public static final String CONFIG_MC = "minecraft";
 
     // build configurations. same as in DevConstants

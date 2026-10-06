@@ -31,6 +31,10 @@ import org.gradle.api.tasks.bundling.Zip;
 import org.gradle.api.tasks.compile.GroovyCompile;
 import org.gradle.api.tasks.compile.JavaCompile;
 import org.gradle.api.tasks.scala.ScalaCompile;
+import org.gradle.api.artifacts.ExternalModuleDependency;
+import org.gradle.api.artifacts.Dependency;
+import org.gradle.api.publish.PublishingExtension;
+import org.gradle.api.publish.maven.MavenPublication;
 import org.gradle.jvm.toolchain.JavaLanguageVersion;
 import org.gradle.jvm.toolchain.JavaToolchainService;
 import org.gradle.plugins.ide.idea.model.IdeaModel;
@@ -311,6 +315,9 @@ public abstract class UserBasePlugin<T extends UserExtension> extends BasePlugin
         project.getConfigurations().create(CONFIG_NATIVES);
         project.getConfigurations().create(CONFIG_START);
         project.getConfigurations().create(CONFIG_DEPS);
+        // First-run dependencies from dev.json are populated after extractUserDev.
+        // Keep them out of compileClasspath while IDE tooling queries the model.
+        project.getConfigurations().create(CONFIG_DEPS_SETUP);
         project.getConfigurations().create(CONFIG_MC);
 
         // special userDev stuff
@@ -321,7 +328,11 @@ public abstract class UserBasePlugin<T extends UserExtension> extends BasePlugin
         extractUserDev.doLast(new Action<Task>() {
             @Override
             public void execute(Task arg0) {
-                readAndApplyJson(getDevJson().call(), CONFIG_DEPS, CONFIG_NATIVES, arg0.getLogger());
+                readAndApplyJson(getDevJson().call(), CONFIG_DEPS_SETUP, CONFIG_NATIVES, arg0.getLogger());
+                JavaCompile recompTask = (JavaCompile) project.getTasks().getByName("recompMinecraft");
+                recompTask.setClasspath(project.files(
+                        project.getConfigurations().getByName(CONFIG_DEPS),
+                        project.getConfigurations().getByName(CONFIG_DEPS_SETUP)));
             }
         });
         project.getTasks().findByName("getAssetsIndex").dependsOn("extractUserDev");
@@ -413,9 +424,10 @@ public abstract class UserBasePlugin<T extends UserExtension> extends BasePlugin
                         }
                     }
 
-                    //Эти либы давно уже сдохли и смысла с них нет. Майнкрафт имеет интеграцию с твичом,
-                    //но запускает в try-catch, потому без либы не помрёт
-                    if (getExtension().isExcludeTwitchLib()) {
+                    // Скипаем твич либы, если excludeTwitchLib=true (все равно твич этой версии давно сдох и майн не дохнет без него).
+                    // Однако именно при сетапе воркспейса майнкрафт - всё равно ВКЛЮЧАЕМ эту либу в депенды, иначе генерация исходников
+                    // ванилла майна сдохнет
+                    if (getExtension().isExcludeTwitchLib() && !CONFIG_DEPS.equals(depConfig)) {
                         if (artifactName.startsWith("tv.twitch:")) {
                             log.debug("Excluding twitch library: " + artifactName);
                             continue;
@@ -801,6 +813,13 @@ public abstract class UserBasePlugin<T extends UserExtension> extends BasePlugin
             recompTask.setSource(recompSrc);
             recompTask.setSourceCompatibility("1.8");
             recompTask.setTargetCompatibility("1.8");
+            // JDK 9+ removed Pack200 from its platform API, while the target
+            // Minecraft version is Java 8. Compile against the Java 8 API even
+            // when the Gradle daemon itself runs on a newer JDK.
+            if (JavaVersion.current().isCompatibleWith(JavaVersion.VERSION_1_9))
+                recompTask.getOptions().getRelease().set(8);
+            // Do not expose CONFIG_DEPS_SETUP to IDE model resolution before
+            // extractUserDev has populated it; its classpath is set in that task.
             recompTask.setClasspath(project.getConfigurations().getByName(CONFIG_DEPS));
             recompTask.dependsOn(extract);
             recompTask.getOptions().setWarnings(false);
@@ -819,6 +838,32 @@ public abstract class UserBasePlugin<T extends UserExtension> extends BasePlugin
 
             repackageTask.onlyIf(onlyIfCheck);
         }
+
+        configureGeneratedSourcesPublication(remapped, recomp);
+    }
+
+    //К сожалению IDEA не хочет сама подтягивать -sources.jar, хоть прибейся.
+    //Либо нужно распаковывать .java файл в папку и аттачить папку в соурссет, либо публиковать артефакт в локальный мавен и аттачить его.
+    //Вариант с папкой фиговый, IDEA позволяет редактировать файлы, что очень опасно, можно случайно их повредить и выстрелить себе в ногу,
+    //а вот с мавеном никаких проблем нет, работает стабильно и автоматически аттачится самой IDE
+    private void configureGeneratedSourcesPublication(DelayedFile sourcesJar, DelayedFile binaryJar) {
+        project.getPlugins().apply("maven-publish");
+        PublishingExtension publishing = project.getExtensions().getByType(PublishingExtension.class);
+        MavenPublication publication = publishing.getPublications().create("forgeGenerated", MavenPublication.class);
+        String group = "net.minecraftforge.generated";
+        String artifact = getSrcDepName();
+        publication.setGroupId(group);
+        publication.setArtifactId(artifact);
+
+        project.afterEvaluate(ignored -> {
+            String version = hasApiVersion() ? getApiVersion(getExtension()) : getMcVersion(getExtension());
+            publication.setVersion(version);
+            publication.artifact(binaryJar.call());
+            publication.artifact(sourcesJar.call(), artifactSpec -> artifactSpec.setClassifier(CLASSIFIER_SOURCES));
+
+            Task setup = project.getTasks().getByName("setupDecompWorkspace");
+            setup.finalizedBy("publishForgeGeneratedPublicationToMavenLocal");
+        });
     }
 
     @SuppressWarnings("serial")
@@ -1029,6 +1074,7 @@ public abstract class UserBasePlugin<T extends UserExtension> extends BasePlugin
         final String repoDir = delayedDirtyFile("this", "doesnt", "matter").call().getParentFile().getAbsolutePath();
         project.allprojects(proj -> {
             addFlatRepo(proj, getApiName() + "FlatRepo", repoDir);
+            proj.getRepositories().mavenLocal();
             proj.getLogger().debug("Adding repo to " + proj.getPath() + " >> " + repoDir);
             if (wrapperArtifact) {
                 proj.getRepositories().ivy(r -> {
@@ -1171,7 +1217,26 @@ public abstract class UserBasePlugin<T extends UserExtension> extends BasePlugin
         if (wrapperArtifact) {
             project.getDependencies().add(CONFIG_COMPILE, ImmutableMap.of("group", WRAPPER_ARTIFACT_GROUP_ID, "name", getApiName(), "version", version));
         } else if (decomp) {
-            project.getDependencies().add(CONFIG_MC, ImmutableMap.of("name", getSrcDepName(), "version", version));
+            // Once setupDecompWorkspace has run, consume the generated jars as a
+            // normal Maven module. Gradle/IDEA then imports the sources classifier
+            // as a read-only library source root instead of treating build output
+            // as a project source directory. On the first run the publication does
+            // not exist yet, so use the expected binary file until setup publishes it.
+            File localPom = new File(new File(new File(new File(
+                    System.getProperty("user.home"), ".m2/repository/net/minecraftforge/generated"),
+                    getSrcDepName()), version), getSrcDepName() + "-" + version + ".pom");
+            if (localPom.isFile()) {
+                Dependency generated = project.getDependencies().create(ImmutableMap.of(
+                        "group", "net.minecraftforge.generated",
+                        "name", getSrcDepName(),
+                        "version", version));
+                if (generated instanceof ExternalModuleDependency)
+                    ((ExternalModuleDependency) generated).setChanging(true);
+                project.getDependencies().add(CONFIG_MC, generated);
+            } else {
+                project.getDependencies().add(CONFIG_MC, project.files(
+                        delayedDirtyFile(getSrcDepName(), null, "jar")));
+            }
             if (remove) {
                 project.getConfigurations().getByName(CONFIG_MC).exclude(ImmutableMap.of("module", getBinDepName()));
             }

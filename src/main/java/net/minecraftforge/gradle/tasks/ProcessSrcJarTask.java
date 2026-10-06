@@ -20,7 +20,15 @@ import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
+import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.*;
+import javax.tools.Diagnostic;
+import javax.tools.DiagnosticCollector;
+import javax.tools.JavaFileObject;
+import javax.tools.SimpleJavaFileObject;
+import javax.tools.ToolProvider;
+import com.sun.source.util.JavacTask;
 
 @DisableCachingByDefault(because = "Abstract task with custom processing logic")
 public class ProcessSrcJarTask extends EditJarTask {
@@ -44,6 +52,7 @@ public class ProcessSrcJarTask extends EditJarTask {
     @Override
     public void doStuffMiddle() throws Exception {
         for (ResourceHolder stage : stages) {
+            Map<String, String> sourceSnapshot = new HashMap<>(sourceMap);
             if (!stage.srcDirs.isEmpty()) {
                 getLogger().lifecycle("Injecting {} files", stage.name);
                 for (RelFile rel : stage.getRelInjects()) {
@@ -65,7 +74,110 @@ public class ProcessSrcJarTask extends EditJarTask {
                 getLogger().lifecycle("Applying {} patches", stage.name);
                 applyPatchStage(stage.name, stage.getPatchFiles());
             }
+            rollbackInvalidSources(sourceSnapshot, stage.name);
         }
+    }
+
+    /**
+     * Decompiler output varies slightly between tool/JDK versions, so some
+     * patch hunks can fail while later hunks still apply. Those later hunks
+     * can leave syntactically invalid Java (for example an unmatched brace).
+     * Keep the successfully patched files, but restore only files that no
+     * longer parse as Java 8.
+     */
+    private void rollbackInvalidSources(Map<String, String> before, String stage) {
+        int restored = 0;
+        for (Map.Entry<String, String> entry : new ArrayList<>(sourceMap.entrySet())) {
+            String path = entry.getKey();
+            String source = entry.getValue();
+            if (!path.endsWith(".java") || parsesAsJava8(source))
+                continue;
+
+            String original = before.get(path);
+            if (original != null) {
+                sourceMap.put(path, original);
+                restored++;
+                getLogger().warn("Reverted {} patch for syntactically invalid source {}", stage, path);
+            }
+        }
+        if (restored > 0)
+            getLogger().lifecycle("Reverted {} invalid Java source patch(es) in {} stage", restored, stage);
+    }
+
+    private boolean parsesAsJava8(String source) {
+        javax.tools.JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
+        if (compiler == null)
+            throw new IllegalStateException("A JDK is required to validate generated Java sources");
+        DiagnosticCollector<JavaFileObject> diagnostics = new DiagnosticCollector<>();
+        JavaFileObject unit = new SimpleJavaFileObject(java.net.URI.create("string:///Generated.java"), JavaFileObject.Kind.SOURCE) {
+            @Override
+            public CharSequence getCharContent(boolean ignoreEncodingErrors) {
+                return source;
+            }
+        };
+        JavacTask task = (JavacTask) compiler.getTask(null, null, diagnostics,
+                Arrays.asList("-proc:none", "--release", "8"), null, Collections.singletonList(unit));
+        try {
+            task.parse();
+        } catch (Exception e) {
+            return false;
+        }
+        for (Diagnostic<?> diagnostic : diagnostics.getDiagnostics()) {
+            if (diagnostic.getKind() == Diagnostic.Kind.ERROR)
+                return false;
+        }
+        return true;
+    }
+
+    /**
+     * FernFlower may omit unused imports that appear as context in Forge's
+     * import hunks. If that makes a hunk fail, retain only its explicit added
+     * imports; all executable code changes still go through ContextualPatch.
+     */
+    private void preserveAddedImports(String target, List<ContextualPatch.HunkReport> hunks) {
+        String path = PROVIDER.strip(target);
+        String source = sourceMap.get(path);
+        if (source == null)
+            return;
+
+        LinkedHashSet<String> additions = new LinkedHashSet<>();
+        for (ContextualPatch.HunkReport hunk : hunks) {
+            if (hunk.getStatus().isSuccess())
+                continue;
+            for (String line : hunk.hunk.lines) {
+                if (line.startsWith("+import ") && line.endsWith(";"))
+                    additions.add(line.substring(1));
+            }
+        }
+        if (additions.isEmpty())
+            return;
+
+        LinkedHashSet<String> missing = new LinkedHashSet<>();
+        for (String added : additions) {
+            if (!source.contains(added))
+                missing.add(added);
+        }
+        if (missing.isEmpty())
+            return;
+
+        java.util.regex.Matcher imports = java.util.regex.Pattern
+                .compile("(?m)^import\\s+[^;]+;[ \\t]*(?:\\r\\n|\\r|\\n|$)")
+                .matcher(source);
+        int insertionPoint = -1;
+        while (imports.find())
+            insertionPoint = imports.end();
+        if (insertionPoint < 0) {
+            java.util.regex.Matcher packageLine = java.util.regex.Pattern
+                    .compile("(?m)^package\\s+[^;]+;[ \\t]*(?:\\r\\n|\\r|\\n|$)")
+                    .matcher(source);
+            if (!packageLine.find())
+                return;
+            insertionPoint = packageLine.end();
+        }
+
+        String inserted = String.join(Constants.NEWLINE, missing) + Constants.NEWLINE;
+        sourceMap.put(path, source.substring(0, insertionPoint) + inserted + source.substring(insertionPoint));
+        getLogger().info("Preserved {} patch import(s) for {} after an import-context mismatch", missing.size(), path);
     }
 
     public void applyPatchStage(String stage, FileCollection patchFiles) throws Exception {
@@ -79,7 +191,12 @@ public class ProcessSrcJarTask extends EditJarTask {
         Throwable failure = null;
 
         for (PatchedFile patch : patches) {
+            // Forge patches often contain hunks that are inapplicable to a
+            // particular decompiler output. Keep applying the valid hunks,
+            // as upstream ForgeGradle does; dropping the whole file patch
+            // removes required Minecraft/Forge API members.
             List<ContextualPatch.PatchReport> errors = patch.patch.patch(false);
+
             for (ContextualPatch.PatchReport report : errors) {
                 // catch failed patches
                 if (!report.getStatus().isSuccess()) {
@@ -102,6 +219,7 @@ public class ProcessSrcJarTask extends EditJarTask {
                             getLogger().info("  " + hunk.getHunkID() + " fuzzed " + hunk.getFuzz() + "!");
                         }
                     }
+                    preserveAddedImports(report.getTarget(), report.getHunks());
                     getLogger().log(LogLevel.ERROR, "  {}/{} failed", failed, report.getHunks().size());
                     getLogger().log(LogLevel.ERROR, "  Rejects written to {}", reject.getAbsolutePath());
 

@@ -8,6 +8,9 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
+import java.nio.file.AtomicMoveNotSupportedException;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.jar.JarEntry;
@@ -93,23 +96,41 @@ public abstract class EditJarTask extends CachedTask {
     }
 
     private void saveJar(File output) throws IOException {
-        JarOutputStream zout = new JarOutputStream(Files.newOutputStream(output.toPath()));
+        //Чисто технически IDEA может автоматически подтянуть еще не доделанный .jar как источник сорцев, получить
+        //ошибку из-за "битого" архива, и этот файл тупо залипнет до полной инвалидации кешей IDE. Чтобы этого точно
+        //не произошло - генерируем файл во временной папке, а затем переносим уже после полной готовности
+        Path outputPath = output.toPath().toAbsolutePath();
+        Path parent = outputPath.getParent();
+        Files.createDirectories(parent);
+        Path temporary = Files.createTempFile(parent, output.getName() + ".", ".tmp");
+        boolean moved = false;
+        try {
+            try (JarOutputStream zout = new JarOutputStream(Files.newOutputStream(temporary))) {
+                // write in resources
+                for (Map.Entry<String, byte[]> entry : resourceMap.entrySet()) {
+                    zout.putNextEntry(new JarEntry(entry.getKey()));
+                    zout.write(entry.getValue());
+                    zout.closeEntry();
+                }
 
-        // write in resources
-        for (Map.Entry<String, byte[]> entry : resourceMap.entrySet()) {
-            zout.putNextEntry(new JarEntry(entry.getKey()));
-            zout.write(entry.getValue());
-            zout.closeEntry();
+                // write in sources
+                for (Map.Entry<String, String> entry : sourceMap.entrySet()) {
+                    zout.putNextEntry(new JarEntry(entry.getKey()));
+                    zout.write(entry.getValue().getBytes());
+                    zout.closeEntry();
+                }
+            }
+
+            try {
+                Files.move(temporary, outputPath, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+            } catch (AtomicMoveNotSupportedException ignored) {
+                Files.move(temporary, outputPath, StandardCopyOption.REPLACE_EXISTING);
+            }
+            moved = true;
+        } finally {
+            if (!moved)
+                Files.deleteIfExists(temporary);
         }
-
-        // write in sources
-        for (Map.Entry<String, String> entry : sourceMap.entrySet()) {
-            zout.putNextEntry(new JarEntry(entry.getKey()));
-            zout.write(entry.getValue().getBytes());
-            zout.closeEntry();
-        }
-
-        zout.close();
     }
 
     public File getInJar() {

@@ -29,6 +29,8 @@ import java.util.*;
 // TODO : Maybe move to Gradle's Caching system ?
 @UntrackedTask(because = "Abstract base class with custom caching logic")
 public abstract class CachedTask extends DefaultTask {
+    //Версия FG кеша. Должна меняться при каждой правке, задевающий генерируемые mcforge jar/sources
+    private static final String CACHE_SCHEMA = "FG-cache-v1";
     private boolean doesCache = true;
     private boolean cacheSet = false;
     private final ArrayList<Annotated> cachedList = new ArrayList<>();
@@ -158,6 +160,7 @@ public abstract class CachedTask extends DefaultTask {
 
     private String getHashes(Annotated output, List<Annotated> inputs, Object instance) throws NoSuchFieldException, IllegalAccessException, NoSuchMethodException, SecurityException, IllegalArgumentException, InvocationTargetException {
         LinkedList<String> hashes = new LinkedList<>(Constants.hashAll(getProject().file(output.getValue(instance))));
+        hashes.add(CACHE_SCHEMA);
 
         for (Annotated input : inputs) {
             AnnotatedElement m = input.getElement();
