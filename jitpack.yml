@@ -1,3 +1,107 @@
-# Xxx
 jdk:
   - openjdk25
+
+before_install:
+  - |
+    set +e
+
+    echo "========================================"
+    echo " JITPACK ENVIRONMENT DEBUG"
+    echo "========================================"
+
+    echo
+    echo "=== CURRENT DIRECTORY ==="
+    pwd
+
+    echo
+    echo "=== GIT ==="
+    git rev-parse HEAD
+    git branch --show-current
+    git status --short
+
+    echo
+    echo "=== JAVA ==="
+    which java
+    java -version
+
+    echo
+    echo "=== JAVA HOME ==="
+    echo "$JAVA_HOME"
+
+    echo
+    echo "=== JAVA TOOL OPTIONS ==="
+    echo "$JAVA_TOOL_OPTIONS"
+
+    echo
+    echo "=== SYSTEM ==="
+    uname -a
+    id
+
+    echo
+    echo "=== GRADLE ==="
+    which gradle
+    gradle --version
+
+    echo
+    echo "=== PROJECT ROOT ==="
+    ls -lah
+
+    echo
+    echo "=== GRADLE DIRECTORY ==="
+    ls -lah gradle
+    ls -lah gradle/wrapper
+
+    echo
+    echo "=== WRAPPER JAR ==="
+    ls -lah gradle/wrapper/gradle-wrapper.jar
+    file gradle/wrapper/gradle-wrapper.jar
+    stat gradle/wrapper/gradle-wrapper.jar
+    sha256sum gradle/wrapper/gradle-wrapper.jar
+
+    echo
+    echo "=== EXPECTED WRAPPER SHA256 ==="
+    echo "7a9ce74cff467ca1bf60a4fcd9f05185acceda4d0f382434d393e17864262c5d"
+
+    echo
+    echo "=== WRAPPER PROPERTIES ==="
+    cat gradle/wrapper/gradle-wrapper.properties
+
+    echo
+    echo "=== GRADLEW ==="
+    ls -lah gradlew
+    file gradlew
+    head -30 gradlew
+
+    echo
+    echo "=== GRADLEW PERMISSIONS ==="
+    stat gradlew
+
+    echo
+    echo "=== NAMEI ==="
+    namei -l gradle/wrapper/gradle-wrapper.jar || true
+    namei -l gradlew || true
+
+    echo
+    echo "=== JAR CONTENTS ==="
+    jar tf gradle/wrapper/gradle-wrapper.jar | head -100
+
+    echo
+    echo "=== DIRECT JAVA JAR TEST ==="
+    java -cp gradle/wrapper/gradle-wrapper.jar \
+      org.gradle.wrapper.GradleWrapperMain --version
+
+    echo
+    echo "=== GRADLEW VERSION ==="
+    ./gradlew --version --stacktrace --info
+
+    echo
+    echo "=== GRADLEW TASKS ==="
+    ./gradlew tasks --all --stacktrace --info
+
+    echo
+    echo "========================================"
+    echo " DEBUG FINISHED"
+    echo "========================================"
+
+install:
+  - echo "JitPack debug complete"
