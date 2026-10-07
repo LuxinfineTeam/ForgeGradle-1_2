@@ -863,6 +863,20 @@ public abstract class UserBasePlugin<T extends UserExtension> extends BasePlugin
 
     private void configureGeneratedSourcesPublication() {
         project.afterEvaluate(ignored -> {
+            //После публикации в maven local sources jar получает 600 posix права, из-за чего IDE не может прочитать файл
+            //Исправляем пермишены после публикации для корреткной работы на Unix
+            Task normalizePermissions = project.getTasks().create("normalizeGeneratedWorkspacePermissions", DefaultTask.class);
+            normalizePermissions.doLast(task -> {
+                for (File artifact : new File[] {
+                        generatedWorkspaceArtifact(null),
+                        generatedWorkspaceArtifact(CLASSIFIER_SOURCES)
+                }) {
+                    if (artifact.isFile() && !artifact.setReadable(true, false))
+                        throw new GradleException("Could not make generated Forge artifact readable: " + artifact);
+                }
+            });
+            project.getTasks().getByName("setupDecompWorkspace").finalizedBy(normalizePermissions);
+
             if (generatedWorkspaceCacheHit)
                 return;
 
