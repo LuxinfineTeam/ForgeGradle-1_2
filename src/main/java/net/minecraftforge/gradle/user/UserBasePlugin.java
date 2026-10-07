@@ -139,6 +139,14 @@ public abstract class UserBasePlugin<T extends UserExtension> extends BasePlugin
         if (wrapperArtifact) task.dependsOn("genWrapperArtifact");
 
         makeTask("resolveGeneratedWorkspace", DefaultTask.class).setGroup("ForgeGradle");
+        Task resetGeneratedWorkspaceCache = makeTask("resetGeneratedWorkspaceCache", DefaultTask.class);
+        resetGeneratedWorkspaceCache.setGroup("ForgeGradle");
+        resetGeneratedWorkspaceCache.setDescription("Deletes the Maven cache entry for the current generated Forge workspace fingerprint.");
+        resetGeneratedWorkspaceCache.doLast(resetTask -> {
+            File cacheEntry = generatedWorkspacePom.getParentFile();
+            project.delete(cacheEntry);
+            project.getLogger().lifecycle("Removed generated Forge workspace cache entry {}", cacheEntry);
+        });
         //configureDecompSetup(task);
 
         if (isSetupDecompWorkspaceRequested()) {
@@ -151,6 +159,15 @@ public abstract class UserBasePlugin<T extends UserExtension> extends BasePlugin
             if ("setupDecompWorkspace".equals(taskName) || taskName.endsWith(":setupDecompWorkspace")) {
                 return true;
             }
+        }
+
+        return false;
+    }
+
+    private boolean isGeneratedWorkspaceCacheResetRequested() {
+        for (String taskName : project.getGradle().getStartParameter().getTaskNames()) {
+            if ("resetGeneratedWorkspaceCache".equals(taskName) || taskName.endsWith(":resetGeneratedWorkspaceCache"))
+                return true;
         }
 
         return false;
@@ -929,11 +946,10 @@ public abstract class UserBasePlugin<T extends UserExtension> extends BasePlugin
     private void prepareGeneratedWorkspaceCache() {
         try {
             TreeMap<String, String> inputs = new TreeMap<>();
-            inputs.put("schema", "fg-workspace-cache-v1");
+            inputs.put("schema", "fg-workspace-cache-v2");
             String implementationVersion = getClass().getPackage().getImplementationVersion();
             inputs.put("plugin", implementationVersion == null ? "unversioned" : implementationVersion);
             inputs.put("plugin-code", hashPluginCode());
-            inputs.put("buildscript-classpath", hashFiles(project.getBuildscript().getConfigurations().getByName("classpath").getFiles()));
             inputs.put("minecraft", getMcVersion(getExtension()));
             inputs.put("forge", hasApiVersion() ? getApiVersion(getExtension()) : getMcVersion(getExtension()));
             inputs.put("mappings", getExtension().getMappings());
@@ -945,7 +961,6 @@ public abstract class UserBasePlugin<T extends UserExtension> extends BasePlugin
             for (String extraSrg : getExtension().getSrgExtra())
                 inputs.put("extra-srg-" + srgIndex++, extraSrg);
             inputs.put("mcp-data", hashConfigurationFiles(CONFIG_MCP_DATA));
-            inputs.put("userdev", hashConfigurationFiles(CONFIG_USERDEV));
             primeUserDevDescriptor();
             readAndApplyJson(getDevJson().call(), CONFIG_DEPS, CONFIG_NATIVES, project.getLogger());
             readAndApplyJson(getDevJson().call(), CONFIG_DEPS_SETUP, CONFIG_NATIVES, project.getLogger());
@@ -978,14 +993,20 @@ public abstract class UserBasePlugin<T extends UserExtension> extends BasePlugin
 
             File versionDir = new File(new File(new File(generatedWorkspaceRepository, "net/minecraftforge/generated"), getSrcDepName()), generatedWorkspaceVersion);
             generatedWorkspacePom = new File(versionDir, getSrcDepName() + "-" + generatedWorkspaceVersion + ".pom");
-            generatedWorkspaceCacheHit = generatedWorkspacePom.isFile() &&
+            boolean resetRequested = isGeneratedWorkspaceCacheResetRequested();
+            generatedWorkspaceCacheHit = !resetRequested && generatedWorkspacePom.isFile() &&
                     isValidArchive(generatedWorkspaceArtifact(null)) &&
                     isValidArchive(generatedWorkspaceArtifact(CLASSIFIER_SOURCES));
             project.getLogger().lifecycle("Forge workspace fingerprint {}: {}",
                     generatedWorkspaceFingerprint, generatedWorkspaceCacheHit ? "Maven cache hit" : "cache miss");
 
             if (!generatedWorkspaceCacheHit && isSetupDecompWorkspaceRequested()) {
-                project.getTasks().getByName("resolveGeneratedWorkspace").dependsOn("repackMinecraft");
+                Task resolve = project.getTasks().getByName("resolveGeneratedWorkspace");
+                resolve.dependsOn("repackMinecraft");
+                if (resetRequested) {
+                    resolve.dependsOn("resetGeneratedWorkspaceCache");
+                    project.getTasks().getByName("repackMinecraft").mustRunAfter("resetGeneratedWorkspaceCache");
+                }
             } else if (generatedWorkspaceCacheHit && isSetupDecompWorkspaceRequested()) {
                 project.getLogger().lifecycle("Skipping decompile/recompile; matching immutable Maven artifacts exist.");
             }
