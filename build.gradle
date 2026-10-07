@@ -101,7 +101,7 @@ dependencies {
     // moved to the beginning to be the overrider
     implementation 'org.ow2.asm:asm:9.10.1'
     implementation 'org.ow2.asm:asm-tree:9.10.1'
-    implementation 'com.google.guava:guava:33.6.0-jre'
+    implementation 'com.google.guava:guava:33.7.1-jre'
 
     implementation 'com.opencsv:opencsv:5.12.0'
     implementation 'com.cloudbees:diff4j:1.3'
@@ -151,7 +151,7 @@ dependencies {
     // (только для IDE индексации)
     templatesCompileOnly 'com.mojang:authlib:1.5.16'
     templatesCompileOnly 'net.minecraft:launchwrapper:1.11'
-    templatesCompileOnly 'com.google.guava:guava:33.6.0-jre'
+    templatesCompileOnly 'com.google.guava:guava:33.7.1-jre'
     templatesCompileOnly 'com.google.code.gson:gson:2.14.0'
     templatesCompileOnly 'org.apache.logging.log4j:log4j-api:2.17.1'
     templatesCompileOnly 'org.apache.logging.log4j:log4j-core:2.17.1'
