@@ -3,6 +3,7 @@ package net.minecraftforge.gradle.tasks;
 import net.minecraftforge.gradle.FileUtils;
 import net.minecraftforge.gradle.common.Constants;
 import net.minecraftforge.gradle.delayed.DelayedFile;
+import net.minecraftforge.gradle.extrastuff.FmlCleanup;
 import net.minecraftforge.gradle.patching.ContextualPatch;
 import net.minecraftforge.gradle.patching.ContextualPatch.PatchStatus;
 import net.minecraftforge.gradle.tasks.abstractutil.EditJarTask;
@@ -90,7 +91,9 @@ public class ProcessSrcJarTask extends EditJarTask {
         for (Map.Entry<String, String> entry : new ArrayList<>(sourceMap.entrySet())) {
             String path = entry.getKey();
             String source = entry.getValue();
-            if (!path.endsWith(".java") || parsesAsJava8(source))
+            //Вместо дорогой проверки валидности кода путем компила через javac,
+            //просто проверяем парность скобок в коде, которые могут поехать после патчей
+            if (!path.endsWith(".java") || FmlCleanup.isSyntacticallyBalanced(source))
                 continue;
 
             String original = before.get(path);

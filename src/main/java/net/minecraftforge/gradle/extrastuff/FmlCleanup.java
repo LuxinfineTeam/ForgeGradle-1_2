@@ -96,7 +96,104 @@ public class FmlCleanup {
         }
 
         String renamed = String.join(Constants.NEWLINE, output);
-        return parsesAsJava8(renamed) ? renamed : text;
+
+        //Оригинальный ForgeGradle прогонял здесь класс через javac, пытаясь скомпилировать его, тупо чтобы понять,
+        //валиден ли синтаксис .java файла (страховка после патчей). Это ОЧЕНЬ дорого. Именно от сюда decompile
+        //таск занимал около МИНУТЫ на норм пк во время setupDecompWorkspace.
+        //Заменено на простую проверку парности скобок, это в разы быстрее
+        boolean balanced = isSyntacticallyBalanced(renamed);
+        if (!balanced) {
+            BALANCE_REVERTS.incrementAndGet();
+            return text;
+        }
+        return renamed;
+    }
+
+    private static final java.util.concurrent.atomic.AtomicInteger BALANCE_REVERTS = new java.util.concurrent.atomic.AtomicInteger();
+    private static final java.util.concurrent.atomic.AtomicInteger PARSE_REVERTS = new java.util.concurrent.atomic.AtomicInteger();
+
+    public static int getBalanceReverts() {
+        return BALANCE_REVERTS.get();
+    }
+
+    public static int getParseReverts() {
+        return PARSE_REVERTS.get();
+    }
+
+    /**
+     * Cheap syntactic sanity check: verifies that braces, parentheses and
+     * brackets are balanced, ignoring string/char literals and comments. This is
+     * a necessary condition for valid Java and catches the unmatched-brace
+     * corruption that {@link #renameClass} can theoretically introduce, without
+     * the cost of running javac for every file.
+     */
+    public static boolean isSyntacticallyBalanced(String source) {
+        int curly = 0, paren = 0, square = 0;
+        boolean inString = false, inChar = false, escaped = false;
+        boolean inLineComment = false, inBlockComment = false;
+
+        for (int i = 0; i < source.length(); i++) {
+            char c = source.charAt(i);
+            char n = i + 1 < source.length() ? source.charAt(i + 1) : '\0';
+
+            if (inLineComment) {
+                if (c == '\n' || c == '\r')
+                    inLineComment = false;
+                continue;
+            }
+            if (inBlockComment) {
+                if (c == '*' && n == '/') {
+                    inBlockComment = false;
+                    i++;
+                }
+                continue;
+            }
+            if (escaped) {
+                escaped = false;
+                continue;
+            }
+            if (inString || inChar) {
+                if (c == '\\')
+                    escaped = true;
+                else if (inString && c == '"')
+                    inString = false;
+                else if (inChar && c == '\'')
+                    inChar = false;
+                continue;
+            }
+            if (c == '"') {
+                inString = true;
+                continue;
+            }
+            if (c == '\'') {
+                inChar = true;
+                continue;
+            }
+            if (c == '/' && n == '/') {
+                inLineComment = true;
+                i++;
+                continue;
+            }
+            if (c == '/' && n == '*') {
+                inBlockComment = true;
+                i++;
+                continue;
+            }
+
+            switch (c) {
+                case '{': curly++; break;
+                case '}': curly--; break;
+                case '(': paren++; break;
+                case ')': paren--; break;
+                case '[': square++; break;
+                case ']': square--; break;
+                default: continue;
+            }
+            if (curly < 0 || paren < 0 || square < 0)
+                return false;
+        }
+
+        return curly == 0 && paren == 0 && square == 0 && !inString && !inChar && !inBlockComment;
     }
 
     private static boolean parsesAsJava8(String source) {

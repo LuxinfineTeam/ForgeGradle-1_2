@@ -75,14 +75,13 @@ public class DecompileTask extends CachedTask {
     protected void doMCPStuff() throws Throwable {
         // define files.
         File temp = new File(getTemporaryDir(), getInJar().getName());
+        long start = System.currentTimeMillis();
 
         getLogger().info("Decompiling Jar");
         decompile(getInJar(), getTemporaryDir(), getFernFlower());
 
         getLogger().info("Loading decompiled jar");
         readJarAndFix(temp);
-
-        saveJar(new File(getTemporaryDir(), getInJar().getName() + ".fixed.jar"));
 
         getLogger().info("Applying MCP patches");
         if (getPatch().isFile()) {
@@ -91,13 +90,13 @@ public class DecompileTask extends CachedTask {
             applyPatchDirectory(getPatch());
         }
 
-        saveJar(new File(getTemporaryDir(), getInJar().getName() + ".patched.jar"));
-
         getLogger().info("Cleaning source");
         applyMcpCleanup(getAstyleConfig());
 
         getLogger().info("Saving Jar");
         saveJar(getOutJar());
+
+        getLogger().info("Decompile finished in " + (System.currentTimeMillis() - start) + " ms");
     }
 
     private void decompile(final File inJar, final File outJar, final File fernFlower) {
@@ -277,6 +276,10 @@ public class DecompileTask extends CachedTask {
 
             sourceMap.put(file, text);
         }
+
+        int reverted = FmlCleanup.getBalanceReverts();
+        if (reverted > 0)
+            getLogger().lifecycle("Reverted FML rename for " + reverted + " file(s) that did not pass the syntax sanity check");
     }
 
     private void saveJar(File output) throws IOException {
