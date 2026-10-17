@@ -849,7 +849,7 @@ public abstract class UserBasePlugin<T extends UserExtension> extends BasePlugin
             recompTask.setSource(recompSrc);
             //ВНИМАНИЕ: После сборки майнкрафта с патчами в IDE - StackMapTable НЕ посчитан!
             //Потому если классы собрать под java7 и выше - произойдет краш верификации байткода.
-            //JVM допускает отсутствие StackMapTable, но только если класс собран под java7 или ниже.
+            //JVM допускает отсутствие StackMapTable, но только если класс собран под java6 или ниже.
             //Оригинальный ForgeGradle тоже здесь ставит java6. НИ В КОЕМ СЛУЧАЕ НЕ МЕНЯТЬ на java7/8!!!
             recompTask.setSourceCompatibility("1.6");
             recompTask.setTargetCompatibility("1.6");
