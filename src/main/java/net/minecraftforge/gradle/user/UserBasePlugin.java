@@ -13,6 +13,7 @@ import net.minecraftforge.gradle.delayed.DelayedFile;
 import net.minecraftforge.gradle.json.JsonFactory;
 import net.minecraftforge.gradle.json.version.Library;
 import net.minecraftforge.gradle.tasks.*;
+import net.minecraftforge.gradle.tasks.abstractutil.EditJarTask;
 import net.minecraftforge.gradle.tasks.abstractutil.ExtractTask;
 import net.minecraftforge.gradle.tasks.user.SourceCopyTask;
 import net.minecraftforge.gradle.tasks.user.reobf.ReobfTask;
@@ -927,10 +928,40 @@ public abstract class UserBasePlugin<T extends UserExtension> extends BasePlugin
                 }
             });
             Delete cleanup = project.getTasks().create("cleanupGeneratedWorkspaceIntermediates", Delete.class);
+            //Удаляем srg/decomp/etc файлы после публикации в мавен, не храним мёртвый груз
             cleanup.delete(delayedFile(RECOMP_SRC_DIR), delayedFile(RECOMP_CLS_DIR));
+            cleanup.delete(generatedWorkspaceIntermediates().toArray());
+            cleanup.onlyIf(task -> isValidArchive(generatedWorkspaceArtifact(null)) &&
+                    isValidArchive(generatedWorkspaceArtifact(CLASSIFIER_SOURCES)));
             writePom.finalizedBy(cleanup);
             project.getTasks().getByName("setupDecompWorkspace").finalizedBy(writePom);
         });
+    }
+
+    private List<File> generatedWorkspaceIntermediates() {
+        File dirtyDir = delayedFile(DIRTY_DIR).call().getAbsoluteFile();
+        List<File> intermediates = new ArrayList<>();
+
+        Task decompile = project.getTasks().findByName("decompile");
+        if (decompile instanceof DecompileTask)
+            addWorkspaceIntermediate(intermediates, dirtyDir, ((DecompileTask) decompile).getOutJar());
+
+        Task deobfuscateJar = project.getTasks().findByName("deobfuscateJar");
+        if (deobfuscateJar instanceof ProcessJarTask)
+            addWorkspaceIntermediate(intermediates, dirtyDir, ((ProcessJarTask) deobfuscateJar).getOutDirtyJar());
+
+        Task processSources = project.getTasks().findByName("processSources");
+        if (processSources instanceof EditJarTask)
+            addWorkspaceIntermediate(intermediates, dirtyDir, ((EditJarTask) processSources).getOutJar());
+
+        return intermediates;
+    }
+
+    private void addWorkspaceIntermediate(List<File> intermediates, File dirtyDir, File jar) {
+        if (jar == null || !jar.getAbsoluteFile().toPath().normalize().startsWith(dirtyDir.toPath().normalize()))
+            return;
+        intermediates.add(jar);
+        intermediates.add(new File(jar.getParentFile(), jar.getName() + ".md5"));
     }
 
     private DelayedFile generatedWorkspaceArtifactDelayed(String classifier) {
