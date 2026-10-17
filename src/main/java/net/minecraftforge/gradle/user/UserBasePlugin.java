@@ -847,14 +847,19 @@ public abstract class UserBasePlugin<T extends UserExtension> extends BasePlugin
         JavaCompile recompTask = makeTask("recompMinecraft", JavaCompile.class);
         {
             recompTask.setSource(recompSrc);
-            recompTask.setSourceCompatibility("1.8");
-            recompTask.setTargetCompatibility("1.8");
-            // JDK 9+ removed Pack200 from its platform API, while the target
-            // Minecraft version is Java 8. Compile against the Java 8 API even
-            // when the Gradle daemon itself runs on a newer JDK.
-            if (JavaVersion.current().isCompatibleWith(JavaVersion.VERSION_1_9))
-                recompTask.getOptions().getRelease().set(8);
-            // Do not expose CONFIG_DEPS_SETUP to IDE model resolution before
+            //ВНИМАНИЕ: После сборки майнкрафта с патчами в IDE - StackMapTable НЕ посчитан!
+            //Потому если классы собрать под java7 и выше - произойдет краш верификации байткода.
+            //JVM допускает отсутствие StackMapTable, но только если класс собран под java7 или ниже.
+            //Оригинальный ForgeGradle тоже здесь ставит java6. НИ В КОЕМ СЛУЧАЕ НЕ МЕНЯТЬ на java7/8!!!
+            recompTask.setSourceCompatibility("1.6");
+            recompTask.setTargetCompatibility("1.6");
+            try {
+                JavaToolchainService toolchains = project.getExtensions().getByType(JavaToolchainService.class);
+                recompTask.getJavaCompiler().set(
+                        toolchains.compilerFor(spec -> spec.getLanguageVersion().set(JavaLanguageVersion.of(8))));
+            } catch (Throwable t) {
+                project.getLogger().error("Unsupported gradle version {}", project.getGradle().getGradleVersion(), t);
+            }
             // extractUserDev has populated it; its classpath is set in that task.
             recompTask.setClasspath(project.getConfigurations().getByName(CONFIG_DEPS));
             recompTask.dependsOn(extract);
