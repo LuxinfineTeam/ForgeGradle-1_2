@@ -947,8 +947,12 @@ public abstract class UserBasePlugin<T extends UserExtension> extends BasePlugin
             addWorkspaceIntermediate(intermediates, dirtyDir, ((DecompileTask) decompile).getOutJar());
 
         Task deobfuscateJar = project.getTasks().findByName("deobfuscateJar");
-        if (deobfuscateJar instanceof ProcessJarTask)
-            addWorkspaceIntermediate(intermediates, dirtyDir, ((ProcessJarTask) deobfuscateJar).getOutDirtyJar());
+        if (deobfuscateJar instanceof ProcessJarTask) {
+            // Не удаляем srg-jar: reobf ссылается на него как на deobfFile
+            File dirtyOut = ((ProcessJarTask) deobfuscateJar).getOutDirtyJar();
+            if (dirtyOut != null && !dirtyOut.getName().toLowerCase().contains("srg"))
+                addWorkspaceIntermediate(intermediates, dirtyDir, dirtyOut);
+        }
 
         Task processSources = project.getTasks().findByName("processSources");
         if (processSources instanceof EditJarTask)
