@@ -1526,6 +1526,9 @@ public abstract class UserBasePlugin<T extends UserExtension> extends BasePlugin
         if (decomp) {
             ((ReobfTask) project.getTasks().getByName("reobf")).setDeobfFile(((ProcessJarTask) project.getTasks().getByName("deobfuscateJar")).getDelayedOutput());
             ((ReobfTask) project.getTasks().getByName("reobf")).setRecompFile(generatedWorkspaceArtifactDelayed(null));
+            // deobfFile is an @InputFile of reobf, so its producer must be in the task graph,
+            // otherwise the file may not exist yet and Gradle 9 fails input validation.
+            project.getTasks().getByName("reobf").dependsOn("deobfuscateJar");
         } else {
             (project.getTasks().getByName(JavaPlugin.COMPILE_JAVA_TASK_NAME)).dependsOn("deobfBinJar");
             (project.getTasks().getByName("compileApiJava")).dependsOn("deobfBinJar");
