@@ -32,7 +32,6 @@ import org.gradle.api.tasks.bundling.Zip;
 import org.gradle.api.tasks.compile.GroovyCompile;
 import org.gradle.api.tasks.compile.JavaCompile;
 import org.gradle.api.tasks.scala.ScalaCompile;
-import org.gradle.api.artifacts.Dependency;
 import org.gradle.api.artifacts.repositories.MavenArtifactRepository;
 import org.gradle.jvm.toolchain.JavaLanguageVersion;
 import org.gradle.jvm.toolchain.JavaToolchainService;
@@ -82,6 +81,9 @@ public abstract class UserBasePlugin<T extends UserExtension> extends BasePlugin
     private File generatedWorkspaceRepository;
     private File generatedWorkspacePom;
     private boolean generatedWorkspaceCacheHit;
+    private String accessTransformedVersion;
+    private File accessTransformedPom;
+    private boolean accessTransformedCacheHit;
 
     @Override
     public void applyPlugin() {
@@ -496,6 +498,55 @@ public abstract class UserBasePlugin<T extends UserExtension> extends BasePlugin
         ideaConv.getModule().setDownloadJavadoc(true);
         ideaConv.getModule().setDownloadSources(true);
 
+        // The AT-applied Minecraft jar is a file dependency in maven-local, so the
+        // standard IDEA model cannot discover its classifier sources jar. Attach it
+        // to the generated module library explicitly, keeping both URLs in .m2.
+        ideaConv.getModule().getIml().withXml(provider -> {
+            if (accessTransformedPom == null || !getExtension().isDecomp())
+                return;
+            File mainJar = accessTransformedArtifact(null);
+            File sourcesJar = accessTransformedArtifact(CLASSIFIER_SOURCES);
+            String marker = mainJar.getAbsolutePath();
+            Element root = provider.asElement();
+            NodeList entries = root.getElementsByTagName("orderEntry");
+            for (int i = 0; i < entries.getLength(); i++) {
+                Element entry = (Element) entries.item(i);
+                if (!"module-library".equals(entry.getAttribute("type")))
+                    continue;
+                NodeList roots = entry.getElementsByTagName("root");
+                boolean matches = false;
+                for (int j = 0; j < roots.getLength(); j++) {
+                    Element jarRoot = (Element) roots.item(j);
+                    if (jarRoot.getAttribute("url").contains(marker)) {
+                        matches = true;
+                        break;
+                    }
+                }
+                if (!matches)
+                    continue;
+                NodeList sourceNodes = entry.getElementsByTagName("SOURCES");
+                Element sources = sourceNodes.getLength() == 0 ? null : (Element) sourceNodes.item(0);
+                if (sources == null) {
+                    sources = root.getOwnerDocument().createElement("SOURCES");
+                    entry.appendChild(sources);
+                }
+                NodeList existingSources = sources.getElementsByTagName("root");
+                boolean alreadyAttached = false;
+                for (int j = 0; j < existingSources.getLength(); j++) {
+                    if (((Element) existingSources.item(j)).getAttribute("url").contains(sourcesJar.getAbsolutePath())) {
+                        alreadyAttached = true;
+                        break;
+                    }
+                }
+                if (alreadyAttached)
+                    break;
+                Element sourceRoot = root.getOwnerDocument().createElement("root");
+                sourceRoot.setAttribute("url", "jar://" + sourcesJar.getAbsolutePath() + "!/");
+                sources.appendChild(sourceRoot);
+                break;
+            }
+        });
+
         // fix the idea bug
         ideaConv.getModule().setInheritOutputDirs(true);
 
@@ -729,7 +780,7 @@ public abstract class UserBasePlugin<T extends UserExtension> extends BasePlugin
             task.setExceptorJson(delayedFile(EXC_JSON));
             task.setExceptorCfg(delayedFile(EXC_SRG));
             task.setInJar(delayedFile(JAR_MERGED));
-            task.setOutCleanJar(delayedFile("{API_CACHE_DIR}/" + name));
+            task.setOutCleanJar(generatedWorkspaceArtifactDelayed(CLASSIFIER_DEOBF_SRG));
             task.setOutDirtyJar(delayedFile(DIRTY_DIR + "/" + name));
             task.setApplyMarkers(true);
             configureDeobfuscation(task);
@@ -796,9 +847,47 @@ public abstract class UserBasePlugin<T extends UserExtension> extends BasePlugin
         final DelayedFile recompSrc = delayedFile(RECOMP_SRC_DIR);
         final DelayedFile recompCls = delayedFile(RECOMP_CLS_DIR);
 
+        ApplyAccessTransformersTask applyAtSrg = makeTask("applyAccessTransformersToSrg", ApplyAccessTransformersTask.class);
+        {
+            applyAtSrg.setInJar(generatedWorkspaceArtifactDelayed(CLASSIFIER_DEOBF_SRG));
+            applyAtSrg.setOutJar(accessTransformedArtifactDelayed(CLASSIFIER_DEOBF_SRG));
+            applyAtSrg.setMappingCsvs(delayedFile(FIELD_CSV), delayedFile(METHOD_CSV));
+            applyAtSrg.dependsOn("resolveGeneratedWorkspace", "deobfuscateJar", "extractMcpData");
+        }
+        ApplyAccessTransformersTask applyAtRecomp = makeTask("applyAccessTransformersToRecomp", ApplyAccessTransformersTask.class);
+        {
+            applyAtRecomp.setInJar(generatedWorkspaceArtifactDelayed(null));
+            applyAtRecomp.setOutJar(accessTransformedArtifactDelayed(null));
+            applyAtRecomp.setMappingCsvs(delayedFile(FIELD_CSV), delayedFile(METHOD_CSV));
+            applyAtRecomp.dependsOn("resolveGeneratedWorkspace", "extractMcpData");
+        }
+        ApplyAccessTransformersToSourcesTask applyAtSources =
+                makeTask("applyAccessTransformersToSources", ApplyAccessTransformersToSourcesTask.class);
+        {
+            applyAtSources.setInJar(generatedWorkspaceArtifactDelayed(CLASSIFIER_SOURCES));
+            applyAtSources.setCleanJar(generatedWorkspaceArtifactDelayed(null));
+            applyAtSources.setAtJar(accessTransformedArtifactDelayed(null));
+            applyAtSources.setOutJar(accessTransformedArtifactDelayed(CLASSIFIER_SOURCES));
+            // Source declarations are driven by the real bytecode diff, so the
+            // AT-applied main jar must exist before the sources are rewritten.
+            applyAtSources.dependsOn("resolveGeneratedWorkspace", "applyAccessTransformersToRecomp", "extractMcpData");
+        }
+        // The AT-applied jar and its sources are published into maven-local. Gradle
+        // and IDEA consume this file collection instead of a not-yet-existing
+        // external module coordinate, so the artifact can be produced by setup.
+        Task publishAt = makeTask("publishAccessTransformedWorkspace", DefaultTask.class);
+        {
+            publishAt.dependsOn("resolveGeneratedWorkspace", "applyAccessTransformersToRecomp",
+                    "applyAccessTransformersToSrg", "applyAccessTransformersToSources");
+            publishAt.doLast(task -> {
+                if (accessTransformedPom == null || !getExtension().isDecomp())
+                    return;
+                writeWorkspacePom(accessTransformedPom, accessTransformedVersion);
+            });
+        }
         DecompileTask decomp = makeTask("decompile", DecompileTask.class);
         {
-            decomp.setInJar(delayedDirtyFile(null, CLASSIFIER_DEOBF_SRG, "jar", false));
+            decomp.setInJar(generatedWorkspaceArtifactDelayed(CLASSIFIER_DEOBF_SRG));
             decomp.setOutJar(decompOut);
             decomp.setFernFlower(delayedFile(FERNFLOWER));
             decomp.setPatch(delayedFile(MCP_PATCH_DIR));
@@ -892,49 +981,38 @@ public abstract class UserBasePlugin<T extends UserExtension> extends BasePlugin
             normalizePermissions.doLast(task -> {
                 for (File artifact : new File[] {
                         generatedWorkspaceArtifact(null),
-                        generatedWorkspaceArtifact(CLASSIFIER_SOURCES)
+                        generatedWorkspaceArtifact(CLASSIFIER_SOURCES),
+                        generatedWorkspaceArtifact(CLASSIFIER_DEOBF_SRG),
+                        accessTransformedArtifact(null),
+                        accessTransformedArtifact(CLASSIFIER_SOURCES),
+                        accessTransformedArtifact(CLASSIFIER_DEOBF_SRG)
                 }) {
                     if (artifact.isFile() && !artifact.setReadable(true, false))
                         throw new GradleException("Could not make generated Forge artifact readable: " + artifact);
                 }
             });
-            project.getTasks().getByName("setupDecompWorkspace").finalizedBy(normalizePermissions);
+            Task resolveWorkspace = project.getTasks().getByName("resolveGeneratedWorkspace");
+            Task publishAt = project.getTasks().getByName("publishAccessTransformedWorkspace");
+            if (accessTransformedCacheHit || !getExtension().isDecomp())
+                publishAt.onlyIf(SPEC_FALSE);
+            normalizePermissions.mustRunAfter(publishAt);
+            resolveWorkspace.finalizedBy(normalizePermissions, publishAt);
 
             if (generatedWorkspaceCacheHit)
                 return;
 
             Task writePom = project.getTasks().create("writeGeneratedWorkspacePom", DefaultTask.class);
             writePom.dependsOn("repackMinecraft");
-            writePom.doLast(task -> {
-                generatedWorkspacePom.getParentFile().mkdirs();
-                String contents = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" +
-                        "<project xmlns=\"http://maven.apache.org/POM/4.0.0\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xsi:schemaLocation=\"http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd\">\n" +
-                        "  <modelVersion>4.0.0</modelVersion>\n" +
-                        "  <groupId>net.minecraftforge.generated</groupId>\n" +
-                        "  <artifactId>" + getSrcDepName() + "</artifactId>\n" +
-                        "  <version>" + generatedWorkspaceVersion + "</version>\n" +
-                        "  <packaging>jar</packaging>\n" +
-                        "</project>\n";
-                File temporary = new File(generatedWorkspacePom.getParentFile(), generatedWorkspacePom.getName() + ".tmp");
-                try {
-                    Files.write(temporary.toPath(), contents.getBytes(StandardCharsets.UTF_8));
-                    try {
-                        Files.move(temporary.toPath(), generatedWorkspacePom.toPath(), StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
-                    } catch (IOException atomicMoveUnsupported) {
-                        Files.move(temporary.toPath(), generatedWorkspacePom.toPath(), StandardCopyOption.REPLACE_EXISTING);
-                    }
-                } catch (IOException e) {
-                    throw new GradleException("Could not write generated Forge workspace POM: " + generatedWorkspacePom, e);
-                }
-            });
+            writePom.doLast(task -> writeWorkspacePom(generatedWorkspacePom, generatedWorkspaceVersion));
             Delete cleanup = project.getTasks().create("cleanupGeneratedWorkspaceIntermediates", Delete.class);
             //Удаляем srg/decomp/etc файлы после публикации в мавен, не храним мёртвый груз
             cleanup.delete(delayedFile(RECOMP_SRC_DIR), delayedFile(RECOMP_CLS_DIR));
             cleanup.delete(generatedWorkspaceIntermediates().toArray());
             cleanup.onlyIf(task -> isValidArchive(generatedWorkspaceArtifact(null)) &&
-                    isValidArchive(generatedWorkspaceArtifact(CLASSIFIER_SOURCES)));
+                    isValidArchive(generatedWorkspaceArtifact(CLASSIFIER_SOURCES)) &&
+                    isValidArchive(generatedWorkspaceArtifact(CLASSIFIER_DEOBF_SRG)));
             writePom.finalizedBy(cleanup);
-            project.getTasks().getByName("setupDecompWorkspace").finalizedBy(writePom);
+            project.getTasks().getByName("resolveGeneratedWorkspace").finalizedBy(writePom);
         });
     }
 
@@ -946,14 +1024,8 @@ public abstract class UserBasePlugin<T extends UserExtension> extends BasePlugin
         if (decompile instanceof DecompileTask)
             addWorkspaceIntermediate(intermediates, dirtyDir, ((DecompileTask) decompile).getOutJar());
 
-        Task deobfuscateJar = project.getTasks().findByName("deobfuscateJar");
-        if (deobfuscateJar instanceof ProcessJarTask) {
-            // Не удаляем srg-jar: reobf ссылается на него как на deobfFile
-            File dirtyOut = ((ProcessJarTask) deobfuscateJar).getOutDirtyJar();
-            if (dirtyOut != null && !dirtyOut.getName().toLowerCase().contains("srg"))
-                addWorkspaceIntermediate(intermediates, dirtyDir, dirtyOut);
-        }
-
+        // deobfuscateJar's dirty output path is reused by applyAccessTransformersToSrg.
+        // That AT-applied jar is an input of reobf, so it must survive cleanup.
         Task processSources = project.getTasks().findByName("processSources");
         if (processSources instanceof EditJarTask)
             addWorkspaceIntermediate(intermediates, dirtyDir, ((EditJarTask) processSources).getOutJar());
@@ -983,6 +1055,48 @@ public abstract class UserBasePlugin<T extends UserExtension> extends BasePlugin
         return new File(generatedWorkspacePom.getParentFile(), filename);
     }
 
+    private DelayedFile accessTransformedArtifactDelayed(String classifier) {
+        return new DelayedFile(project, "") {
+            @Override
+            public File resolveDelayed() {
+                return accessTransformedArtifact(classifier);
+            }
+        };
+    }
+
+    private File accessTransformedArtifact(String classifier) {
+        if (accessTransformedPom == null)
+            return generatedWorkspaceArtifact(classifier);
+        String filename = getSrcDepName() + "-" + accessTransformedVersion +
+                (Strings.isNullOrEmpty(classifier) ? "" : "-" + classifier) + ".jar";
+        return new File(accessTransformedPom.getParentFile(), filename);
+    }
+
+    private void writeWorkspacePom(File pom, String version) {
+        if (pom == null)
+            return;
+        pom.getParentFile().mkdirs();
+        String contents = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" +
+                "<project xmlns=\"http://maven.apache.org/POM/4.0.0\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xsi:schemaLocation=\"http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd\">\n" +
+                "  <modelVersion>4.0.0</modelVersion>\n" +
+                "  <groupId>net.minecraftforge.generated</groupId>\n" +
+                "  <artifactId>" + getSrcDepName() + "</artifactId>\n" +
+                "  <version>" + version + "</version>\n" +
+                "  <packaging>jar</packaging>\n" +
+                "</project>\n";
+        File temporary = new File(pom.getParentFile(), pom.getName() + ".tmp");
+        try {
+            Files.write(temporary.toPath(), contents.getBytes(StandardCharsets.UTF_8));
+            try {
+                Files.move(temporary.toPath(), pom.toPath(), StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+            } catch (IOException atomicMoveUnsupported) {
+                Files.move(temporary.toPath(), pom.toPath(), StandardCopyOption.REPLACE_EXISTING);
+            }
+        } catch (IOException e) {
+            throw new GradleException("Could not write generated Forge workspace POM: " + pom, e);
+        }
+    }
+
     private void prepareGeneratedWorkspaceCache() {
         try {
             TreeMap<String, String> inputs = new TreeMap<>();
@@ -1010,19 +1124,11 @@ public abstract class UserBasePlugin<T extends UserExtension> extends BasePlugin
                 net.minecraftforge.gradle.user.patch.UserPatchExtension patchExtension =
                         (net.minecraftforge.gradle.user.patch.UserPatchExtension) getExtension();
                 inputs.put("patch-max-fuzz", Integer.toString(patchExtension.getMaxFuzz()));
-                inputs.put("use-dependency-ats", Boolean.toString(patchExtension.getUseAtFromDependencies()));
-                int index = 0;
-                for (Object configuredAt : patchExtension.getAccessTransformers()) {
-                    Object resolved = configuredAt instanceof Closure ? ((Closure<?>) configuredAt).call() : configuredAt;
-                    addFingerprintFile(inputs, "extension-at-" + index++, project.file(resolved));
-                }
             }
 
-            addSourceSetAccessTransformers(inputs, "main");
-            addSourceSetAccessTransformers(inputs, "api");
-            if (getExtension() instanceof net.minecraftforge.gradle.user.patch.UserPatchExtension &&
-                    ((net.minecraftforge.gradle.user.patch.UserPatchExtension) getExtension()).getUseAtFromDependencies())
-                addDependencyAccessTransformers(inputs);
+            // User access transformers are applied after the cache, per project,
+            // so they must not change the fingerprint of the shared clean artifacts.
+            inputs.put("access-transformers", "applied-after-cache");
 
             StringBuilder manifest = new StringBuilder();
             for (Map.Entry<String, String> entry : inputs.entrySet())
@@ -1033,25 +1139,81 @@ public abstract class UserBasePlugin<T extends UserExtension> extends BasePlugin
 
             File versionDir = new File(new File(new File(generatedWorkspaceRepository, "net/minecraftforge/generated"), getSrcDepName()), generatedWorkspaceVersion);
             generatedWorkspacePom = new File(versionDir, getSrcDepName() + "-" + generatedWorkspaceVersion + ".pom");
+            versionDir.mkdirs();
             boolean resetRequested = isGeneratedWorkspaceCacheResetRequested();
             generatedWorkspaceCacheHit = !resetRequested && generatedWorkspacePom.isFile() &&
                     isValidArchive(generatedWorkspaceArtifact(null)) &&
-                    isValidArchive(generatedWorkspaceArtifact(CLASSIFIER_SOURCES));
+                    isValidArchive(generatedWorkspaceArtifact(CLASSIFIER_SOURCES)) &&
+                    isValidArchive(generatedWorkspaceArtifact(CLASSIFIER_DEOBF_SRG));
             project.getLogger().lifecycle("Forge workspace fingerprint {}: {}",
                     generatedWorkspaceFingerprint, generatedWorkspaceCacheHit ? "Maven cache hit" : "cache miss");
 
-            if (!generatedWorkspaceCacheHit && isSetupDecompWorkspaceRequested()) {
+            if (!generatedWorkspaceCacheHit) {
                 Task resolve = project.getTasks().getByName("resolveGeneratedWorkspace");
                 resolve.dependsOn("repackMinecraft");
                 if (resetRequested) {
                     resolve.dependsOn("resetGeneratedWorkspaceCache");
                     project.getTasks().getByName("repackMinecraft").mustRunAfter("resetGeneratedWorkspaceCache");
                 }
-            } else if (generatedWorkspaceCacheHit && isSetupDecompWorkspaceRequested()) {
+            } else if (isSetupDecompWorkspaceRequested()) {
                 project.getLogger().lifecycle("Skipping decompile/recompile; matching immutable Maven artifacts exist.");
             }
         } catch (IOException | NoSuchAlgorithmException | URISyntaxException e) {
             throw new GradleException("Could not compute generated Forge workspace fingerprint", e);
+        }
+    }
+
+    private void prepareAccessTransformedWorkspaceCache() {
+        try {
+            ApplyAccessTransformersTask applyAtSrg =
+                    (ApplyAccessTransformersTask) project.getTasks().getByName("applyAccessTransformersToSrg");
+            ApplyAccessTransformersTask applyAtRecomp =
+                    (ApplyAccessTransformersTask) project.getTasks().getByName("applyAccessTransformersToRecomp");
+            ApplyAccessTransformersToSourcesTask applyAtSources =
+                    (ApplyAccessTransformersToSourcesTask) project.getTasks().getByName("applyAccessTransformersToSources");
+
+            Set<File> transformers = new HashSet<>();
+            for (DelayedFile transformer : applyAtRecomp.getAts()) {
+                File file = project.file(transformer);
+                if (file.isFile())
+                    transformers.add(file.getCanonicalFile());
+            }
+            List<String> transformerHashes = new ArrayList<>();
+            for (File transformer : transformers)
+                transformerHashes.add(sha256(transformer));
+            Collections.sort(transformerHashes);
+
+            TreeMap<String, String> inputs = new TreeMap<>();
+            inputs.put("workspace", generatedWorkspaceVersion);
+            inputs.put("at-count", Integer.toString(transformerHashes.size()));
+            for (int i = 0; i < transformerHashes.size(); i++)
+                inputs.put("at-" + i, transformerHashes.get(i));
+
+            StringBuilder manifest = new StringBuilder();
+            for (Map.Entry<String, String> entry : inputs.entrySet())
+                manifest.append(entry.getKey()).append('=').append(entry.getValue()).append('\n');
+            String fingerprint = sha256(manifest.toString().getBytes(StandardCharsets.UTF_8));
+            accessTransformedVersion = generatedWorkspaceVersion + "-at" + fingerprint;
+
+            File versionDir = new File(new File(new File(generatedWorkspaceRepository, "net/minecraftforge/generated"),
+                    getSrcDepName()), accessTransformedVersion);
+            accessTransformedPom = new File(versionDir, getSrcDepName() + "-" + accessTransformedVersion + ".pom");
+            versionDir.mkdirs();
+
+            accessTransformedCacheHit = accessTransformedPom.isFile() &&
+                    isValidArchive(accessTransformedArtifact(null)) &&
+                    isValidArchive(accessTransformedArtifact(CLASSIFIER_SOURCES)) &&
+                    isValidArchive(accessTransformedArtifact(CLASSIFIER_DEOBF_SRG));
+            project.getLogger().lifecycle("Access-transformer workspace {}: {}",
+                    accessTransformedVersion, accessTransformedCacheHit ? "Maven cache hit" : "cache miss");
+
+            if (accessTransformedCacheHit) {
+                applyAtSrg.onlyIf(SPEC_FALSE);
+                applyAtRecomp.onlyIf(SPEC_FALSE);
+                applyAtSources.onlyIf(SPEC_FALSE);
+            }
+        } catch (IOException | NoSuchAlgorithmException e) {
+            throw new GradleException("Could not compute access-transformed Forge workspace cache", e);
         }
     }
 
@@ -1075,6 +1237,7 @@ public abstract class UserBasePlugin<T extends UserExtension> extends BasePlugin
         }
     }
 
+    /*
     private void addSourceSetAccessTransformers(Map<String, String> inputs, String sourceSetName)
             throws IOException, NoSuchAlgorithmException {
         SourceSet sourceSet = JavaExtensionHelper.getSourceSet(project).findByName(sourceSetName);
@@ -1119,7 +1282,7 @@ public abstract class UserBasePlugin<T extends UserExtension> extends BasePlugin
         Collections.sort(transformerHashes);
         for (int index = 0; index < transformerHashes.size(); index++)
             inputs.put("dependency-at-" + index, transformerHashes.get(index));
-    }
+    }*/
 
     private String hashConfigurationFiles(String configurationName) throws IOException, NoSuchAlgorithmException {
         org.gradle.api.artifacts.Configuration configuration = project.getConfigurations().findByName(configurationName);
@@ -1160,10 +1323,11 @@ public abstract class UserBasePlugin<T extends UserExtension> extends BasePlugin
         throw new GradleException("Resolved userdev archive does not contain dev.json; cannot configure workspace dependencies safely.");
     }
 
+    /*
     private void addFingerprintFile(Map<String, String> inputs, String key, File file)
             throws IOException, NoSuchAlgorithmException {
         inputs.put(key, file.isFile() ? sha256(file) : "missing:" + file.getPath());
-    }
+    }*/
 
     private String sha256(File file) throws IOException, NoSuchAlgorithmException {
         try (FileInputStream stream = new FileInputStream(file)) {
@@ -1421,6 +1585,9 @@ public abstract class UserBasePlugin<T extends UserExtension> extends BasePlugin
 
         prepareGeneratedWorkspaceCache();
         delayedTaskConfig();
+        // ATs are registered by delayedTaskConfig(), so the AT-applied artifact
+        // cache can only be resolved after it has run.
+        prepareAccessTransformedWorkspaceCache();
 
         // check for decompilation status.. has decompiled or not etc
         final File decompFile = generatedWorkspaceArtifact(CLASSIFIER_SOURCES);
@@ -1524,11 +1691,18 @@ public abstract class UserBasePlugin<T extends UserExtension> extends BasePlugin
      */
     protected void configurePostDecomp(boolean decomp, boolean remove) {
         if (decomp) {
-            ((ReobfTask) project.getTasks().getByName("reobf")).setDeobfFile(((ProcessJarTask) project.getTasks().getByName("deobfuscateJar")).getDelayedOutput());
-            ((ReobfTask) project.getTasks().getByName("reobf")).setRecompFile(generatedWorkspaceArtifactDelayed(null));
+            ((ReobfTask) project.getTasks().getByName("reobf")).setDeobfFile(accessTransformedArtifactDelayed(CLASSIFIER_DEOBF_SRG));
+            ((ReobfTask) project.getTasks().getByName("reobf")).setRecompFile(accessTransformedArtifactDelayed(null));
             // deobfFile is an @InputFile of reobf, so its producer must be in the task graph,
             // otherwise the file may not exist yet and Gradle 9 fails input validation.
-            project.getTasks().getByName("reobf").dependsOn("deobfuscateJar");
+            project.getTasks().getByName("reobf").dependsOn("applyAccessTransformersToSrg", "applyAccessTransformersToRecomp");
+            (project.getTasks().getByName(JavaPlugin.COMPILE_JAVA_TASK_NAME)).dependsOn("publishAccessTransformedWorkspace");
+            (project.getTasks().getByName("compileApiJava")).dependsOn("publishAccessTransformedWorkspace");
+            // The AT-applied artifacts are published to maven-local as part of setup.
+            project.getTasks().getByName("setupDecompWorkspace").dependsOn("publishAccessTransformedWorkspace");
+            Task ideaModule = project.getTasks().findByName("ideaModule");
+            if (ideaModule != null)
+                ideaModule.dependsOn("publishAccessTransformedWorkspace");
         } else {
             (project.getTasks().getByName(JavaPlugin.COMPILE_JAVA_TASK_NAME)).dependsOn("deobfBinJar");
             (project.getTasks().getByName("compileApiJava")).dependsOn("deobfBinJar");
@@ -1549,17 +1723,23 @@ public abstract class UserBasePlugin<T extends UserExtension> extends BasePlugin
         if (wrapperArtifact) {
             project.getDependencies().add(CONFIG_COMPILE, ImmutableMap.of("group", WRAPPER_ARTIFACT_GROUP_ID, "name", getApiName(), "version", version));
         } else if (decomp) {
-            // Maven coordinates are content-addressed by the complete generated
-            // workspace inputs. They never get overwritten by another project's ATs.
-            if (generatedWorkspaceCacheHit) {
-                Dependency generated = project.getDependencies().create(ImmutableMap.of(
+            // IDE tooling and compilation both consume the maven-local artifact. Its
+            // version is derived from the clean workspace plus the effective AT set,
+            // so projects with identical ATs share the same jar and its sources.
+            // When the artifact already exists, declare a real module dependency: the
+            // native IntelliJ Gradle importer uses it to discover "-sources.jar".
+            // On cache miss it is declared as a file collection with an explicit
+            // producer task, because resolving a not-yet-published module coordinate
+            // would fail before setup has had a chance to create it.
+            if (accessTransformedCacheHit) {
+                project.getDependencies().add(CONFIG_MC, ImmutableMap.of(
                         "group", "net.minecraftforge.generated",
                         "name", getSrcDepName(),
-                        "version", generatedWorkspaceVersion));
-                project.getDependencies().add(CONFIG_MC, generated);
+                        "version", accessTransformedVersion));
             } else {
-                project.getDependencies().add(CONFIG_MC, project.files(
-                        generatedWorkspaceArtifactDelayed(null)));
+                project.getDependencies().add(CONFIG_MC,
+                        project.files(accessTransformedArtifactDelayed(null))
+                                .builtBy("publishAccessTransformedWorkspace"));
             }
             if (remove) {
                 project.getConfigurations().getByName(CONFIG_MC).exclude(ImmutableMap.of("module", getBinDepName()));

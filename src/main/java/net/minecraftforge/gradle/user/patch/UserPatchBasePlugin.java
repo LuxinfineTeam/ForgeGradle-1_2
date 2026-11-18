@@ -92,7 +92,7 @@ public abstract class UserPatchBasePlugin extends UserBasePlugin<UserPatchExtens
         // ATs from the ExtensionObject
         Object[] extAts = getExtension().getAccessTransformers().toArray();
         binDeobf.addTransformer(extAts);
-        decompDeobf.addTransformer(extAts);
+        for (Object at : extAts) addDecompAccessTransformer(at);
 
         // from the resources dirs
         {
@@ -105,7 +105,7 @@ public abstract class UserPatchBasePlugin extends UserBasePlugin<UserPatchExtens
                 if (at.getName().toLowerCase().endsWith("_at.cfg")) {
                     project.getLogger().lifecycle("Found AccessTransformer in main resources: " + at.getName());
                     binDeobf.addTransformer(at);
-                    decompDeobf.addTransformer(at);
+                    addDecompAccessTransformer(at);
                 }
             }
 
@@ -113,7 +113,7 @@ public abstract class UserPatchBasePlugin extends UserBasePlugin<UserPatchExtens
                 if (at.getName().toLowerCase().endsWith("_at.cfg")) {
                     project.getLogger().lifecycle("Found AccessTransformer in api resources: " + at.getName());
                     binDeobf.addTransformer(at);
-                    decompDeobf.addTransformer(at);
+                    addDecompAccessTransformer(at);
                 }
             }
         }
@@ -127,6 +127,17 @@ public abstract class UserPatchBasePlugin extends UserBasePlugin<UserPatchExtens
         patch.setMaxFuzz(getExtension().getMaxFuzz());
 
         super.delayedTaskConfig();
+    }
+
+    private void addDecompAccessTransformer(Object at) {
+        for (String name : new String[]{"applyAccessTransformersToSrg", "applyAccessTransformersToRecomp"}) {
+            org.gradle.api.Task task = project.getTasks().findByName(name);
+            if (task instanceof net.minecraftforge.gradle.tasks.ApplyAccessTransformersTask)
+                ((net.minecraftforge.gradle.tasks.ApplyAccessTransformersTask) task).addTransformer(at);
+        }
+        org.gradle.api.Task sources = project.getTasks().findByName("applyAccessTransformersToSources");
+        if (sources instanceof net.minecraftforge.gradle.tasks.ApplyAccessTransformersToSourcesTask)
+            ((net.minecraftforge.gradle.tasks.ApplyAccessTransformersToSourcesTask) sources).addTransformer(at);
     }
 
     private void extractATsFromDependencies(final ProcessJarTask binDeobf, final ProcessJarTask decompDeobf) {
@@ -170,7 +181,7 @@ public abstract class UserPatchBasePlugin extends UserBasePlugin<UserPatchExtens
 
                             project.getLogger().lifecycle("Found AccessTransformer in dependency " + dep.getName() + ": " + entryName);
                             binDeobf.addTransformer(atFile);
-                            decompDeobf.addTransformer(atFile);
+                            addDecompAccessTransformer(atFile);
                         }
                     }
                 } catch (Exception e) {
