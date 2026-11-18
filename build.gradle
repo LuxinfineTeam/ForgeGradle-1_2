@@ -99,8 +99,8 @@ dependencies {
     implementation gradleApi()
 
     // moved to the beginning to be the overrider
-    implementation 'org.ow2.asm:asm:9.10.1'
-    implementation 'org.ow2.asm:asm-tree:9.10.1'
+    implementation 'org.ow2.asm:asm:9.11.1'
+    implementation 'org.ow2.asm:asm-tree:9.11.1'
     implementation 'com.google.guava:guava:33.6.0-jre'
 
     implementation 'com.opencsv:opencsv:5.12.0'
